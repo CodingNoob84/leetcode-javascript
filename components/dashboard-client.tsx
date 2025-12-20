@@ -33,6 +33,7 @@ interface DashboardProps {
   customTitle?: string;
   customDescription?: string;
   allowTagRemoval?: boolean;
+  tagSlug?: string; // Add tagSlug prop for tag-specific navigation
 }
 
 import { X } from "lucide-react";
@@ -49,6 +50,7 @@ export function DashboardClient({
   customTitle,
   customDescription,
   allowTagRemoval,
+  tagSlug,
 }: DashboardProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
@@ -141,7 +143,9 @@ export function DashboardClient({
                   <Card className="bg-zinc-900/40 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/40 transition-all group h-full flex flex-col relative">
                     {/* Main Solution Link */}
                     <Link
-                      href={`/solution/${solution.slug}`}
+                      href={`/solution/${solution.slug}${
+                        tagSlug ? `?tag=${encodeURIComponent(tagSlug)}` : ""
+                      }`}
                       className="absolute inset-0 z-0"
                       aria-label={`View solution for ${solution.title}`}
                     />

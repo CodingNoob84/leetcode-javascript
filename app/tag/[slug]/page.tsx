@@ -82,6 +82,7 @@ export default async function TagPage({
         customTitle={`Tag: ${decodedSlug}`}
         customDescription={`Browse ${total} problems tagged with "${decodedSlug}".`}
         allowTagRemoval={true}
+        tagSlug={dbSlug}
       />
     </main>
   );

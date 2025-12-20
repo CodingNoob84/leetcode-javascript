@@ -220,3 +220,37 @@ export async function getPaginatedSolutionsByTag(tag: string, page: number, page
 
     return { solutions: Array.from(solutionsMap.values()), total };
 }
+
+export async function getSolutionsByTag(tag: string): Promise<Solution[]> {
+    // Find category first
+    const [category] = await db.select().from(schema.categories).where(eq(schema.categories.slug, tag));
+
+    if (!category) return [];
+
+    // Get all problems for this category
+    const problemsList = await db.select({
+        problem: schema.problems,
+    })
+        .from(schema.problems)
+        .innerJoin(schema.problemCategories, eq(schema.problems.id, schema.problemCategories.problemId))
+        .where(eq(schema.problemCategories.categoryId, category.id))
+        .orderBy(asc(schema.problems.leetcodeId));
+
+    if (problemsList.length === 0) return [];
+
+    // Convert to Solution format
+    const solutionsMap = new Map<number, Solution>();
+    problemsList.forEach(p => {
+        solutionsMap.set(p.problem.id, {
+            id: p.problem.leetcodeId.toString(),
+            slug: p.problem.slug,
+            title: p.problem.title,
+            difficulty: p.problem.difficulty as any,
+            categories: [category.name],
+            content: p.problem.content,
+            description: p.problem.description || "",
+        });
+    });
+
+    return Array.from(solutionsMap.values());
+}
