@@ -24,7 +24,7 @@ import { toast } from "sonner" // assuming sonner or similar usage, otherwise al
 
 interface TagManagerProps {
     slug: string;
-    currentTags: string[];
+    currentTags: { name: string, slug: string }[];
 }
 
 export function TagManager({ slug, currentTags }: TagManagerProps) {
@@ -59,21 +59,21 @@ export function TagManager({ slug, currentTags }: TagManagerProps) {
     };
 
     // Filter available tags to excludes ones already added
-    const unselectedTags = availableTags.filter(t => !currentTags.includes(t.name));
+    const unselectedTags = availableTags.filter(t => !currentTags.find(ct => ct.slug === t.slug));
 
     return (
         <div className="flex flex-wrap items-center gap-2">
             {currentTags.map(tag => (
-                <Badge key={tag} variant="secondary" className="bg-zinc-800 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1 pr-1">
-                    <Link href={`/tag/${tag.toLowerCase().replace(/\s+/g, '-')}`} className="hover:text-emerald-400 hover:underline transition-colors">
-                        {tag}
+                <Badge key={tag.slug} variant="secondary" className="bg-zinc-800 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1 pr-1">
+                    <Link href={`/tag/${tag.slug}`} className="hover:text-emerald-400 hover:underline transition-colors">
+                        {tag.name}
                     </Link>
                     <button
-                        onClick={() => handleRemoveTag(tag)}
+                        onClick={() => handleRemoveTag(tag.name)}
                         className="hover:text-red-400 focus:outline-none ml-1 rounded-full hover:bg-zinc-600 p-0.5 transition-colors"
                     >
                         <X className="h-3 w-3" />
-                        <span className="sr-only">Remove {tag}</span>
+                        <span className="sr-only">Remove {tag.name}</span>
                     </button>
                 </Badge>
             ))}

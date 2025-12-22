@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Trash2, Copy, ClipboardCheck } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -78,10 +78,34 @@ export function EditProblemContent({ problem }: EditProblemContentProps) {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Description Editor */}
                     <Card className="bg-zinc-900/50 border-zinc-800">
-                        <CardHeader>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium text-zinc-400 uppercase tracking-wider">
                                 Problem Description
                             </CardTitle>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 px-2 text-zinc-500 hover:text-zinc-300"
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(description);
+                                        toast.success("Description copied");
+                                    }}
+                                >
+                                    <Copy className="h-4 w-4 mr-1" /> Copy
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 px-2 text-zinc-500 hover:text-red-400"
+                                    onClick={() => {
+                                        setDescription("");
+                                        toast.success("Description cleared");
+                                    }}
+                                >
+                                    <Trash2 className="h-4 w-4 mr-1" /> Clear
+                                </Button>
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <Textarea
@@ -95,10 +119,34 @@ export function EditProblemContent({ problem }: EditProblemContentProps) {
 
                     {/* Solution Editor */}
                     <Card className="bg-zinc-900/50 border-zinc-800">
-                        <CardHeader>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium text-zinc-400 uppercase tracking-wider">
                                 JavaScript Solution
                             </CardTitle>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 px-2 text-zinc-500 hover:text-zinc-300"
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(solution);
+                                        toast.success("Solution copied");
+                                    }}
+                                >
+                                    <Copy className="h-4 w-4 mr-1" /> Copy
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 px-2 text-zinc-500 hover:text-red-400"
+                                    onClick={() => {
+                                        setSolution("");
+                                        toast.success("Solution cleared");
+                                    }}
+                                >
+                                    <Trash2 className="h-4 w-4 mr-1" /> Clear
+                                </Button>
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <Textarea

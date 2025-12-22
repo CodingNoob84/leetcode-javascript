@@ -2,6 +2,7 @@ import { pgTable, text, serial, integer, timestamp, pgEnum } from "drizzle-orm/p
 import { relations } from "drizzle-orm";
 
 export const difficultyEnum = pgEnum("difficulty", ["Easy", "Medium", "Hard", "Unknown"]);
+export const learningStatusEnum = pgEnum("learning_status", ["Mastered", "Learning", "To Do"]);
 
 export const problems = pgTable("problems", {
     id: serial("id").primaryKey(),
@@ -10,6 +11,7 @@ export const problems = pgTable("problems", {
     title: text("title").notNull(),
     description: text("description"),
     difficulty: difficultyEnum("difficulty").default("Unknown"),
+    learningStatus: learningStatusEnum("learning_status").default("To Do"),
     content: text("content").notNull(), // The raw content (including JSDoc)
     solution: text("solution"), // The stripped code solution
     createdAt: timestamp("created_at").defaultNow(),

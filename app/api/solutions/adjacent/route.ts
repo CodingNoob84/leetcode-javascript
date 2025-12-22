@@ -8,13 +8,14 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams;
     const leetcodeId = parseInt(searchParams.get("leetcodeId") || "");
     const tagSlug = searchParams.get("tagSlug") || undefined;
+    const status = searchParams.get("status") || undefined;
 
     if (isNaN(leetcodeId)) {
         return NextResponse.json({ error: "Invalid leetcodeId" }, { status: 400 });
     }
 
     try {
-        const data = await getAdjacentSolutions(leetcodeId, tagSlug);
+        const data = await getAdjacentSolutions(leetcodeId, tagSlug, status);
         return NextResponse.json(data);
     } catch (error) {
         console.error("API error fetching adjacent solutions:", error);

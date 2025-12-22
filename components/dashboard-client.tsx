@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Code2, Layers, Zap } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import {
   Card,
@@ -25,6 +26,19 @@ import {
   PaginationEllipsis,
 } from "@/components/ui/pagination";
 
+import { X, CheckCircle2, BookOpen, Circle, Filter } from "lucide-react";
+import { removeTagFromProblem } from "@/app/actions";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { Button } from "./ui/button";
+import { LearningAnalytics } from "./learning-analytics";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 interface DashboardProps {
   solutions: Solution[];
   totalSolutions: number;
@@ -33,14 +47,16 @@ interface DashboardProps {
   customTitle?: string;
   customDescription?: string;
   allowTagRemoval?: boolean;
-  tagSlug?: string; // Add tagSlug prop for tag-specific navigation
+  tagSlug?: string;
+  onPageChange?: (p: number) => void;
+  statusFilter?: string;
+  onStatusChange?: (s: string) => void;
+  analytics?: {
+    counts: Record<string, number>;
+    percentages: Record<string, number>;
+    total: number;
+  };
 }
-
-import { X } from "lucide-react";
-import { removeTagFromProblem } from "@/app/actions";
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
-import { Button } from "./ui/button";
 
 export function DashboardClient({
   solutions,
@@ -51,6 +67,10 @@ export function DashboardClient({
   customDescription,
   allowTagRemoval,
   tagSlug,
+  onPageChange,
+  statusFilter,
+  onStatusChange,
+  analytics,
 }: DashboardProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
@@ -87,28 +107,11 @@ export function DashboardClient({
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 font-sans selection:bg-zinc-800">
-      <div className="container mx-auto py-10 px-4">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-12 text-center"
-        >
-          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-zinc-100 to-zinc-500 bg-clip-text text-transparent">
-            {customTitle || "LeetCode JavaScript"}
-          </h1>
-          <p className="text-zinc-400 text-lg md:text-xl max-w-2xl mx-auto">
-            {customDescription || (
-              <>
-                Explore {totalSolutions} optimized solutions. Master the art of
-                algorithms with clean code.
-              </>
-            )}
-          </p>
-        </motion.div>
+      <div className="container mx-auto py-5 px-4">
+        {analytics && <LearningAnalytics analytics={analytics} />}
 
         {/* Search & Actions */}
-        <div className="mb-8 max-w-2xl mx-auto flex flex-col sm:flex-row gap-4 items-center">
+        <div className="mb-8 max-w-4xl mx-auto flex flex-col md:flex-row gap-4 items-center">
           <div className="relative flex-1 w-full text-left">
             <Search className="absolute left-3 top-3 h-4 w-4 text-zinc-500" />
             <Input
@@ -118,15 +121,47 @@ export function DashboardClient({
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Link href="/tags" className="w-full sm:w-auto">
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/50 hover:bg-zinc-900"
-            >
-              <Layers className="mr-2 h-4 w-4" />
-              Browse Tags
-            </Button>
-          </Link>
+
+          <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full md:w-auto border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-emerald-400 transition-all",
+                    statusFilter && "text-emerald-500 border-emerald-500/30 bg-emerald-500/5"
+                  )}
+                >
+                  <Filter className="mr-2 h-4 w-4" />
+                  {statusFilter || "All Status"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-zinc-900 border-zinc-800 text-zinc-200">
+                <DropdownMenuItem onClick={() => onStatusChange?.("")} className="cursor-pointer">
+                  All Status
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onStatusChange?.("Mastered")} className="gap-2 cursor-pointer">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Mastered
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onStatusChange?.("Learning")} className="gap-2 cursor-pointer">
+                  <BookOpen className="h-4 w-4 text-blue-500" /> Learning
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onStatusChange?.("To Do")} className="gap-2 cursor-pointer">
+                  <Circle className="h-4 w-4 text-zinc-400" /> To Do
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Link href="/tags" className="w-full md:w-auto">
+              <Button
+                variant="outline"
+                className="w-full md:w-auto border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/50 hover:bg-zinc-900"
+              >
+                <Layers className="mr-2 h-4 w-4" />
+                Tags
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Content */}
@@ -143,9 +178,10 @@ export function DashboardClient({
                   <Card className="bg-zinc-900/40 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/40 transition-all group h-full flex flex-col relative">
                     {/* Main Solution Link */}
                     <Link
-                      href={`/solution/${solution.slug}${
-                        tagSlug ? `?tag=${encodeURIComponent(tagSlug)}` : ""
-                      }`}
+                      href={`/solution/${solution.slug}?${new URLSearchParams({
+                        ...(tagSlug ? { tag: tagSlug } : {}),
+                        ...(statusFilter ? { status: statusFilter } : {})
+                      }).toString()}`}
                       className="absolute inset-0 z-0"
                       aria-label={`View solution for ${solution.title}`}
                     />
@@ -158,21 +194,24 @@ export function DashboardClient({
                           </span>
                           {solution.title}
                         </CardTitle>
-                        <Badge
-                          variant="outline"
-                          className={`shrink-0 
-                                                    ${
-                                                      solution.difficulty ===
-                                                      "Easy"
-                                                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20"
-                                                        : solution.difficulty ===
-                                                          "Medium"
-                                                        ? "bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20"
-                                                        : "bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20"
-                                                    }`}
-                        >
-                          {solution.difficulty}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          {solution.learningStatus === "Mastered" && <CheckCircle2 className="h-4 w-4 text-emerald-500/50" />}
+                          {solution.learningStatus === "Learning" && <BookOpen className="h-4 w-4 text-blue-500/50" />}
+                          <Badge
+                            variant="outline"
+                            className={`shrink-0 
+                                                      ${solution.difficulty ===
+                                "Easy"
+                                ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20"
+                                : solution.difficulty ===
+                                  "Medium"
+                                  ? "bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20"
+                                  : "bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20"
+                              }`}
+                          >
+                            {solution.difficulty}
+                          </Badge>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="flex-grow relative z-10 pointer-events-none">
@@ -182,28 +221,26 @@ export function DashboardClient({
                           <div className="flex flex-wrap gap-2 mt-2 pointer-events-auto">
                             {solution.categories.slice(0, 3).map((cat) => (
                               <Badge
-                                key={cat}
+                                key={cat.slug}
                                 variant="secondary"
                                 className="bg-zinc-800 text-zinc-400 text-[10px] hover:bg-zinc-700 flex items-center gap-1 cursor-pointer"
                               >
                                 <Link
-                                  href={`/tag/${cat
-                                    .toLowerCase()
-                                    .replace(/\s+/g, "-")}`}
+                                  href={`/tag/${cat.slug}`}
                                   className="hover:text-emerald-400 hover:underline transition-colors"
                                 >
-                                  {cat}
+                                  {cat.name}
                                 </Link>
                                 {allowTagRemoval && (
                                   <button
                                     onClick={(e) =>
-                                      handleRemoveTag(e, solution.slug, cat)
+                                      handleRemoveTag(e, solution.slug, cat.name)
                                     }
                                     className="hover:text-red-400 focus:outline-none ml-1 rounded-full hover:bg-zinc-600 p-0.5 transition-colors"
                                   >
                                     <X className="h-2 w-2" />
                                     <span className="sr-only">
-                                      Remove {cat}
+                                      Remove {cat.name}
                                     </span>
                                   </button>
                                 )}
@@ -226,7 +263,8 @@ export function DashboardClient({
               {page > 1 ? (
                 <PaginationItem>
                   <PaginationPrevious
-                    href={`?page=${page - 1}`}
+                    href={onPageChange ? "#" : `?page=${page - 1}`}
+                    onClick={onPageChange ? (e) => { e.preventDefault(); onPageChange(page - 1); } : undefined}
                     className="bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
                   />
                 </PaginationItem>
@@ -256,7 +294,8 @@ export function DashboardClient({
                 return (
                   <PaginationItem key={p}>
                     <PaginationLink
-                      href={`?page=${p}`}
+                      href={onPageChange ? "#" : `?page=${p}`}
+                      onClick={onPageChange ? (e) => { e.preventDefault(); onPageChange(p); } : undefined}
                       isActive={page === p}
                       className={
                         page === p
@@ -278,7 +317,8 @@ export function DashboardClient({
               {page < totalPages ? (
                 <PaginationItem>
                   <PaginationNext
-                    href={`?page=${page + 1}`}
+                    href={onPageChange ? "#" : `?page=${page + 1}`}
+                    onClick={onPageChange ? (e) => { e.preventDefault(); onPageChange(page + 1); } : undefined}
                     className="bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
                   />
                 </PaginationItem>

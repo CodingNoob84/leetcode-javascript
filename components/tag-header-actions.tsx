@@ -68,13 +68,13 @@ export function TagHeaderActions({ slug, currentName }: TagHeaderActionsProps) {
 
     return (
         <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)} className="border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-white">
-                <Pencil className="h-4 w-4 mr-2" />
-                Edit Name
+            <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)} className="border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-white h-9 px-3 sm:px-4">
+                <Pencil className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Edit Name</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setIsDeleteOpen(true)} className="border-red-900/30 hover:bg-red-900/20 text-red-400 hover:text-red-300">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete Tag
+            <Button variant="outline" size="sm" onClick={() => setIsDeleteOpen(true)} className="border-red-900/30 hover:bg-red-900/20 text-red-400 hover:text-red-300 h-9 px-3 sm:px-4">
+                <Trash2 className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Delete Tag</span>
             </Button>
 
             {/* Edit Dialog */}

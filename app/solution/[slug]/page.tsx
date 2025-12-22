@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Edit2 } from "lucide-react";
+import { ArrowLeft, Edit2, X, Filter } from "lucide-react";
 import {
   getSolution,
 } from "@/lib/solutions";
@@ -10,8 +10,11 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TagManager } from "@/components/tag-manager";
 import { SolutionNavButtons } from "@/components/solution-nav-buttons";
+import { LearningStatusSelector } from "@/components/learning-status-selector";
+import { NavContextManager } from "@/components/nav-context-manager";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LearningStatus } from "@/app/actions";
 
 // We remove generateStaticParams to allow for a more dynamic and responsive feel
 // as it was fetching all 2800+ solutions to pre-render every single page.
@@ -21,7 +24,7 @@ export default async function SolutionPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ tag?: string }>;
+  searchParams: Promise<{ tag?: string; status?: string }>;
 }) {
   const { slug } = await params;
   const resolvedSearchParams = await searchParams;
@@ -91,22 +94,19 @@ export default async function SolutionPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <Link href={`/solution/${solution.slug}/edit`}>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-zinc-700 text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/50 hover:bg-zinc-900"
-              >
-                <Edit2 className="h-4 w-4 mr-1" /> Edit
-              </Button>
-            </Link>
             <SolutionNavButtons
               leetcodeId={parseInt(solution.id)}
               tagSlug={tagSlug}
+              status={resolvedSearchParams.status}
             />
           </div>
         </div>
       </header>
+
+      <NavContextManager
+        slug={solution.slug}
+        problemTags={solution.categories}
+      />
 
       {/* Mobile Header & Layout (Visible only on Mobile) */}
       <div className="md:hidden flex flex-col min-h-screen">
@@ -123,18 +123,10 @@ export default async function SolutionPage({
               </Button>
             </Link>
             <div className="flex items-center gap-1">
-              <Link href={`/solution/${solution.slug}/edit`}>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 border-zinc-800 bg-zinc-900 text-zinc-400 mr-2"
-                >
-                  <Edit2 className="h-4 w-4" />
-                </Button>
-              </Link>
               <SolutionNavButtons
                 leetcodeId={parseInt(solution.id)}
                 tagSlug={tagSlug}
+                status={resolvedSearchParams.status}
                 isMobile
               />
             </div>
@@ -173,6 +165,29 @@ export default async function SolutionPage({
               slug={solution.slug}
               currentTags={solution.categories}
             />
+          </div>
+
+          {/* Mobile Tools Row: Status & Edit */}
+          <div className="mt-4 pt-4 border-t border-zinc-900 flex items-center justify-between gap-2">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Progress</span>
+              </div>
+              <LearningStatusSelector
+                slug={solution.slug}
+                initialStatus={solution.learningStatus as LearningStatus}
+              />
+            </div>
+            <Link href={`/solution/${solution.slug}/edit`} className="mt-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-emerald-400 gap-2"
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+                <span className="text-xs">Edit</span>
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -220,43 +235,81 @@ export default async function SolutionPage({
       </div>
 
       {/* Desktop Content (Hidden on Mobile) */}
-      <main className="hidden md:flex flex-1 container mx-auto p-4 md:p-6 lg:h-[calc(100vh-4rem)] lg:overflow-hidden flex-col lg:flex-row gap-6">
-        {/* Description Column */}
-        <div className="lg:w-1/3 flex flex-col h-full bg-zinc-900/30 rounded-lg border border-zinc-800 overflow-hidden shrink-0">
-          <div className="p-4 border-b border-zinc-800 bg-zinc-900/50">
-            <h2 className="font-semibold text-zinc-200">Problem Description</h2>
-          </div>
-          <ScrollArea className="flex-1 p-4">
-            <div className="prose prose-invert prose-sm max-w-none">
-              <pre className="whitespace-pre-wrap font-sans text-zinc-300 text-sm leading-relaxed">
-                {description}
-              </pre>
+      <main className="hidden md:flex flex-1 container mx-auto p-4 md:p-6 lg:h-[calc(100vh-4rem)] lg:overflow-hidden flex-col gap-6">
+        {/* Actions Bar (Desktop) */}
+        <div className="flex items-center justify-between bg-zinc-900/40 border border-zinc-800 rounded-lg p-3">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 pr-4 border-r border-zinc-800">
+              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Learning Status:</span>
+              <LearningStatusSelector
+                slug={solution.slug}
+                initialStatus={solution.learningStatus as LearningStatus}
+              />
             </div>
-          </ScrollArea>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Difficulty:</span>
+              <Badge
+                variant="outline"
+                className={`
+                        ${solution.difficulty === "Easy" ? "border-emerald-500/20 text-emerald-400" : ""}
+                        ${solution.difficulty === "Medium" ? "border-amber-500/20 text-amber-400" : ""}
+                        ${solution.difficulty === "Hard" ? "border-red-500/20 text-red-400" : ""}
+                    `}
+              >
+                {solution.difficulty}
+              </Badge>
+            </div>
+          </div>
+
+          <Link href={`/solution/${solution.slug}/edit`}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-zinc-700 text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/50 hover:bg-zinc-900"
+            >
+              <Edit2 className="h-4 w-4 mr-2" /> Edit Solution
+            </Button>
+          </Link>
         </div>
 
-        {/* Code Column */}
-        <div className="lg:w-2/3 flex flex-col h-full bg-zinc-950 rounded-lg border border-zinc-800 overflow-hidden shadow-2xl shrink-0">
-          <div className="p-3 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50" />
-                <div className="w-3 h-3 rounded-full bg-amber-500/20 border border-amber-500/50" />
-                <div className="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500/50" />
-              </div>
-              <span className="text-xs text-zinc-500 ml-2 font-mono">
-                solution.js
-              </span>
+        <div className="flex flex-1 flex-col lg:flex-row gap-6 lg:overflow-hidden">
+          {/* Description Column */}
+          <div className="lg:w-1/3 flex flex-col h-full bg-zinc-900/30 rounded-lg border border-zinc-800 overflow-hidden shrink-0">
+            <div className="p-4 border-b border-zinc-800 bg-zinc-900/50">
+              <h2 className="font-semibold text-zinc-200">Problem Description</h2>
             </div>
-            <Badge
-              variant="secondary"
-              className="bg-zinc-800 text-zinc-400 font-mono text-xs"
-            >
-              JavaScript
-            </Badge>
+            <ScrollArea className="flex-1 p-4">
+              <div className="prose prose-invert prose-sm max-w-none">
+                <pre className="whitespace-pre-wrap font-sans text-zinc-300 text-sm leading-relaxed">
+                  {description}
+                </pre>
+              </div>
+            </ScrollArea>
           </div>
-          <div className="flex-1 overflow-hidden bg-zinc-950">
-            <CodeViewer code={code} />
+
+          {/* Code Column */}
+          <div className="lg:w-2/3 flex flex-col h-full bg-zinc-950 rounded-lg border border-zinc-800 overflow-hidden shadow-2xl shrink-0">
+            <div className="p-3 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50" />
+                  <div className="w-3 h-3 rounded-full bg-amber-500/20 border border-amber-500/50" />
+                  <div className="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500/50" />
+                </div>
+                <span className="text-xs text-zinc-500 ml-2 font-mono">
+                  solution.js
+                </span>
+              </div>
+              <Badge
+                variant="secondary"
+                className="bg-zinc-800 text-zinc-400 font-mono text-xs"
+              >
+                JavaScript
+              </Badge>
+            </div>
+            <div className="flex-1 overflow-hidden bg-zinc-950">
+              <CodeViewer code={code} />
+            </div>
           </div>
         </div>
       </main>

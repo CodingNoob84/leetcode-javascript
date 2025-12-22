@@ -19,10 +19,11 @@ interface AdjacentResponse {
 interface SolutionNavButtonsProps {
     leetcodeId: number;
     tagSlug?: string;
+    status?: string;
     isMobile?: boolean;
 }
 
-export function SolutionNavButtons({ leetcodeId, tagSlug, isMobile }: SolutionNavButtonsProps) {
+export function SolutionNavButtons({ leetcodeId, tagSlug, status, isMobile }: SolutionNavButtonsProps) {
     const [adjacent, setAdjacent] = useState<AdjacentResponse | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -30,7 +31,7 @@ export function SolutionNavButtons({ leetcodeId, tagSlug, isMobile }: SolutionNa
         async function fetchAdjacent() {
             setLoading(true);
             try {
-                const url = `/api/solutions/adjacent?leetcodeId=${leetcodeId}${tagSlug ? `&tagSlug=${encodeURIComponent(tagSlug)}` : ""}`;
+                const url = `/api/solutions/adjacent?leetcodeId=${leetcodeId}${tagSlug ? `&tagSlug=${encodeURIComponent(tagSlug)}` : ""}${status ? `&status=${status}` : ""}`;
                 const res = await fetch(url);
                 if (res.ok) {
                     const data = await res.json();
@@ -55,8 +56,14 @@ export function SolutionNavButtons({ leetcodeId, tagSlug, isMobile }: SolutionNa
         );
     }
 
-    const prevHref = adjacent?.prev ? `/solution/${adjacent.prev.slug}${tagSlug ? `?tag=${encodeURIComponent(tagSlug)}` : ""}` : null;
-    const nextHref = adjacent?.next ? `/solution/${adjacent.next.slug}${tagSlug ? `?tag=${encodeURIComponent(tagSlug)}` : ""}` : null;
+    const prevHref = adjacent?.prev ? `/solution/${adjacent.prev.slug}?${new URLSearchParams({
+        ...(tagSlug ? { tag: tagSlug } : {}),
+        ...(status ? { status } : {})
+    }).toString()}` : null;
+    const nextHref = adjacent?.next ? `/solution/${adjacent.next.slug}?${new URLSearchParams({
+        ...(tagSlug ? { tag: tagSlug } : {}),
+        ...(status ? { status } : {})
+    }).toString()}` : null;
 
     if (isMobile) {
         return (

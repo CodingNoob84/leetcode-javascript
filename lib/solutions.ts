@@ -1,13 +1,14 @@
 import { db } from './db';
 import * as schema from '../db/schema';
-import { eq, asc, sql } from 'drizzle-orm';
+import { eq, asc, sql, and } from 'drizzle-orm';
 
 export interface Solution {
     id: string;
     slug: string;
     title: string;
     difficulty: "Easy" | "Medium" | "Hard" | "Unknown";
-    categories: string[];
+    learningStatus: "Mastered" | "Learning" | "To Do";
+    categories: { name: string, slug: string }[];
     content: string;
     description: string;
     solution: string;
@@ -36,6 +37,7 @@ export async function getSolutions(): Promise<GroupedSolutions[]> {
                 slug: row.problem.slug,
                 title: row.problem.title,
                 difficulty: row.problem.difficulty as any,
+                learningStatus: row.problem.learningStatus as any,
                 categories: [],
                 content: row.problem.content,
                 description: row.problem.description || "",
@@ -43,7 +45,10 @@ export async function getSolutions(): Promise<GroupedSolutions[]> {
             });
         }
         if (row.category) {
-            solutionsMap.get(row.problem.id)!.categories.push(row.category.name);
+            const sol = solutionsMap.get(row.problem.id)!;
+            if (!sol.categories.find(c => c.slug === row.category!.slug)) {
+                sol.categories.push({ name: row.category.name, slug: row.category.slug });
+            }
         }
     }
 
@@ -56,8 +61,8 @@ export async function getSolutions(): Promise<GroupedSolutions[]> {
             grouped["Uncategorized"].push(s);
         }
         s.categories.forEach(cat => {
-            if (!grouped[cat]) grouped[cat] = [];
-            grouped[cat].push(s);
+            if (!grouped[cat.name]) grouped[cat.name] = [];
+            grouped[cat.name].push(s);
         });
     });
 
@@ -84,6 +89,7 @@ export async function getSolution(slug: string): Promise<Solution | null> {
         slug: rows[0].problem.slug,
         title: rows[0].problem.title,
         difficulty: rows[0].problem.difficulty as any,
+        learningStatus: rows[0].problem.learningStatus as any,
         categories: [],
         content: rows[0].problem.content,
         description: rows[0].problem.description || "",
@@ -92,8 +98,8 @@ export async function getSolution(slug: string): Promise<Solution | null> {
 
     rows.forEach(row => {
         if (row.category) {
-            if (!solution.categories.includes(row.category.name)) {
-                solution.categories.push(row.category.name);
+            if (!solution.categories.find(c => c.slug === row.category!.slug)) {
+                solution.categories.push({ name: row.category.name, slug: row.category.slug });
             }
         }
     });
@@ -119,6 +125,7 @@ export async function getAllSolutions(): Promise<Solution[]> {
                 slug: row.problem.slug,
                 title: row.problem.title,
                 difficulty: row.problem.difficulty as any,
+                learningStatus: row.problem.learningStatus as any,
                 categories: [],
                 content: row.problem.content,
                 description: row.problem.description || "",
@@ -127,29 +134,34 @@ export async function getAllSolutions(): Promise<Solution[]> {
         }
         if (row.category) {
             const sol = solutionsMap.get(row.problem.id)!;
-            if (!sol.categories.includes(row.category.name)) {
-                sol.categories.push(row.category.name);
+            if (!sol.categories.find(c => c.slug === row.category!.slug)) {
+                sol.categories.push({ name: row.category.name, slug: row.category.slug });
             }
         }
     }
     return Array.from(solutionsMap.values()).sort((a, b) => parseInt(a.id) - parseInt(b.id));
 }
 
-export async function getPaginatedSolutions(page: number, pageSize: number): Promise<{ solutions: Solution[], total: number }> {
+export async function getPaginatedSolutions(page: number, pageSize: number, status?: string): Promise<{ solutions: Solution[], total: number }> {
     const offset = (page - 1) * pageSize;
 
-    const problemsList = await db.select()
-        .from(schema.problems)
+    let query = db.select().from(schema.problems);
+    let countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.problems);
+
+    if (status) {
+        query = query.where(eq(schema.problems.learningStatus, status as any)) as any;
+        countQuery = countQuery.where(eq(schema.problems.learningStatus, status as any)) as any;
+    }
+
+    const problemsList = await query
         .limit(pageSize)
         .offset(offset)
         .orderBy(asc(schema.problems.leetcodeId));
 
-    const countResult = await db.select({ count: sql<number>`count(*)` }).from(schema.problems);
+    const countResult = await countQuery;
     const total = Number(countResult[0].count);
 
     if (problemsList.length === 0) return { solutions: [], total };
-
-    const problemIds = problemsList.map(p => p.id);
 
     const solutionsMap = new Map<number, Solution>();
     problemsList.forEach(p => {
@@ -158,6 +170,7 @@ export async function getPaginatedSolutions(page: number, pageSize: number): Pro
             slug: p.slug,
             title: p.title,
             difficulty: p.difficulty as any,
+            learningStatus: p.learningStatus as any,
             categories: [], // Populate if needed
             content: p.content,
             description: p.description || "",
@@ -168,7 +181,7 @@ export async function getPaginatedSolutions(page: number, pageSize: number): Pro
     return { solutions: Array.from(solutionsMap.values()), total };
 }
 
-export async function getPaginatedSolutionsByTag(tag: string, page: number, pageSize: number): Promise<{ solutions: Solution[], total: number }> {
+export async function getPaginatedSolutionsByTag(tag: string, page: number, pageSize: number, status?: string): Promise<{ solutions: Solution[], total: number }> {
     const offset = (page - 1) * pageSize;
 
     // Find category first
@@ -176,13 +189,19 @@ export async function getPaginatedSolutionsByTag(tag: string, page: number, page
 
     if (!category) return { solutions: [], total: 0 };
 
+    // Build conditions
+    const conditions = [eq(schema.problemCategories.categoryId, category.id)];
+    if (status) {
+        conditions.push(eq(schema.problems.learningStatus, status as any));
+    }
+
     // Get problems for this category
     const problemsList = await db.select({
         problem: schema.problems,
     })
         .from(schema.problems)
         .innerJoin(schema.problemCategories, eq(schema.problems.id, schema.problemCategories.problemId))
-        .where(eq(schema.problemCategories.categoryId, category.id))
+        .where(and(...conditions))
         .limit(pageSize)
         .offset(offset)
         .orderBy(asc(schema.problems.leetcodeId));
@@ -190,24 +209,12 @@ export async function getPaginatedSolutionsByTag(tag: string, page: number, page
     // Get total count
     const countResult = await db.select({ count: sql<number>`count(*)` })
         .from(schema.problemCategories)
-        .where(eq(schema.problemCategories.categoryId, category.id));
+        .innerJoin(schema.problems, eq(schema.problemCategories.problemId, schema.problems.id))
+        .where(and(...conditions));
 
     const total = Number(countResult[0].count);
 
     if (problemsList.length === 0) return { solutions: [], total };
-
-    const problemIds = problemsList.map(p => p.problem.id);
-
-    // To get categories for these problems, strictly speaking we'd need another query or join 
-    // but for the list view we just need the problem details mostly. 
-    // If we want to show ALL categories for these problems, we can do a second fetch.
-    // For performance, let's just return the problems populated.
-
-    // Actually, DashboardClient expects categories array.
-
-    // Let's re-fetch details with categories for these IDs
-    // OR just fetch them in the first query with a group_by / aggregation.
-    // But Drizzle aggregation is tricky. simpler to fetch problems then their cats.
 
     // Fetch filter: problems with these IDs
     const solutionsMap = new Map<number, Solution>();
@@ -217,7 +224,8 @@ export async function getPaginatedSolutionsByTag(tag: string, page: number, page
             slug: p.problem.slug,
             title: p.problem.title,
             difficulty: p.problem.difficulty as any,
-            categories: [category.name], // at least include the current one
+            learningStatus: p.problem.learningStatus as any,
+            categories: [{ name: category.name, slug: category.slug }], // at least include the current one
             content: p.problem.content,
             description: p.problem.description || "",
             solution: p.problem.solution || "",
@@ -252,7 +260,8 @@ export async function getSolutionsByTag(tag: string): Promise<Solution[]> {
             slug: p.problem.slug,
             title: p.problem.title,
             difficulty: p.problem.difficulty as any,
-            categories: [category.name],
+            learningStatus: p.problem.learningStatus as any,
+            categories: [{ name: category.name, slug: category.slug }],
             content: p.problem.content,
             description: p.problem.description || "",
             solution: p.problem.solution || "",
@@ -284,16 +293,22 @@ export async function getCategoriesWithCounts(): Promise<Record<string, number>>
     });
     return counts;
 }
-export async function getAdjacentSolutions(leetcodeId: number, tagSlug?: string): Promise<{ prev: { slug: string, title: string } | null, next: { slug: string, title: string } | null }> {
+
+export async function getAdjacentSolutions(leetcodeId: number, tagSlug?: string, status?: string): Promise<{ prev: { slug: string, title: string } | null, next: { slug: string, title: string } | null }> {
+    const baseConditions = [];
+    if (status) {
+        baseConditions.push(eq(schema.problems.learningStatus, status as any));
+    }
+
     let prevQuery = db.select({ slug: schema.problems.slug, title: schema.problems.title })
         .from(schema.problems)
-        .where(sql`${schema.problems.leetcodeId} < ${leetcodeId}`)
+        .where(and(...baseConditions, sql`${schema.problems.leetcodeId} < ${leetcodeId}`))
         .orderBy(sql`${schema.problems.leetcodeId} desc`)
         .limit(1);
 
     let nextQuery = db.select({ slug: schema.problems.slug, title: schema.problems.title })
         .from(schema.problems)
-        .where(sql`${schema.problems.leetcodeId} > ${leetcodeId}`)
+        .where(and(...baseConditions, sql`${schema.problems.leetcodeId} > ${leetcodeId}`))
         .orderBy(asc(schema.problems.leetcodeId))
         .limit(1);
 
@@ -305,6 +320,7 @@ export async function getAdjacentSolutions(leetcodeId: number, tagSlug?: string)
                 .innerJoin(schema.problemCategories, eq(schema.problems.id, schema.problemCategories.problemId))
                 .where(and(
                     eq(schema.problemCategories.categoryId, category.id),
+                    ...baseConditions,
                     sql`${schema.problems.leetcodeId} < ${leetcodeId}`
                 ))
                 .orderBy(sql`${schema.problems.leetcodeId} desc`)
@@ -315,6 +331,7 @@ export async function getAdjacentSolutions(leetcodeId: number, tagSlug?: string)
                 .innerJoin(schema.problemCategories, eq(schema.problems.id, schema.problemCategories.problemId))
                 .where(and(
                     eq(schema.problemCategories.categoryId, category.id),
+                    ...baseConditions,
                     sql`${schema.problems.leetcodeId} > ${leetcodeId}`
                 ))
                 .orderBy(asc(schema.problems.leetcodeId))
@@ -330,4 +347,75 @@ export async function getAdjacentSolutions(leetcodeId: number, tagSlug?: string)
     };
 }
 
-import { and } from 'drizzle-orm';
+export async function getLearningAnalytics() {
+    const results = await db.select({
+        status: schema.problems.learningStatus,
+        count: sql<number>`count(*)`
+    })
+        .from(schema.problems)
+        .groupBy(schema.problems.learningStatus);
+
+    const analytics: Record<string, number> = {
+        "Mastered": 0,
+        "Learning": 0,
+        "To Do": 0
+    };
+
+    let total = 0;
+    results.forEach(r => {
+        if (r.status) {
+            analytics[r.status] = Number(r.count);
+            total += Number(r.count);
+        }
+    });
+
+    return {
+        counts: analytics,
+        percentages: {
+            "Mastered": total > 0 ? (analytics["Mastered"] / total) * 100 : 0,
+            "Learning": total > 0 ? (analytics["Learning"] / total) * 100 : 0,
+            "To Do": total > 0 ? (analytics["To Do"] / total) * 100 : 0,
+        },
+        total
+    };
+}
+
+export async function getLearningAnalyticsByTag(tagSlug: string) {
+    // Find category first
+    const [category] = await db.select().from(schema.categories).where(eq(schema.categories.slug, tagSlug));
+
+    if (!category) return null;
+
+    const results = await db.select({
+        status: schema.problems.learningStatus,
+        count: sql<number>`count(*)`
+    })
+        .from(schema.problems)
+        .innerJoin(schema.problemCategories, eq(schema.problems.id, schema.problemCategories.problemId))
+        .where(eq(schema.problemCategories.categoryId, category.id))
+        .groupBy(schema.problems.learningStatus);
+
+    const analytics: Record<string, number> = {
+        "Mastered": 0,
+        "Learning": 0,
+        "To Do": 0
+    };
+
+    let total = 0;
+    results.forEach(r => {
+        if (r.status) {
+            analytics[r.status] = Number(r.count);
+            total += Number(r.count);
+        }
+    });
+
+    return {
+        counts: analytics,
+        percentages: {
+            "Mastered": total > 0 ? (analytics["Mastered"] / total) * 100 : 0,
+            "Learning": total > 0 ? (analytics["Learning"] / total) * 100 : 0,
+            "To Do": total > 0 ? (analytics["To Do"] / total) * 100 : 0,
+        },
+        total
+    };
+}
