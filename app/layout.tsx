@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "./globals.css";
 // Font configuration moved to globals.css to bypass build-time network dependency
 
 export const metadata: Metadata = {
