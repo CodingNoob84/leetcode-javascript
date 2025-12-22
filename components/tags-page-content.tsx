@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect } from "react"
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Tag, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
     Dialog,
     DialogContent,
@@ -21,20 +22,45 @@ import { createTag } from "@/app/actions"
 import { useRouter } from "next/navigation"
 import { Label } from "./ui/label";
 
-interface TagsPageProps {
-    categories: Record<string, number>;
+interface CategoryInfo {
+    name: string;
+    slug: string;
 }
 
-export default function TagsPageContent({ categories }: TagsPageProps) {
+interface TagsPageProps {
+    initialCategories: CategoryInfo[];
+}
+
+export default function TagsPageContent({ initialCategories }: TagsPageProps) {
+    const [counts, setCounts] = useState<Record<string, number> | null>(null);
     const [open, setOpen] = useState(false);
     const [newItemName, setNewItemName] = useState("");
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
 
-    // Sort categories by count (desc) then name (asc)
-    const sortedCategories = Object.entries(categories).sort((a, b) => {
-        if (b[1] !== a[1]) return b[1] - a[1];
-        return a[0].localeCompare(b[0]);
+    useEffect(() => {
+        async function fetchCounts() {
+            try {
+                const res = await fetch("/api/categories/counts");
+                if (res.ok) {
+                    const data = await res.json();
+                    setCounts(data);
+                }
+            } catch (err) {
+                console.error("Failed to fetch tag counts:", err);
+            }
+        }
+        fetchCounts();
+    }, []);
+
+    // Sort categories by count if available, otherwise by name
+    const sortedCategories = [...initialCategories].sort((a, b) => {
+        if (counts) {
+            const countA = counts[a.name] || 0;
+            const countB = counts[b.name] || 0;
+            if (countB !== countA) return countB - countA;
+        }
+        return a.name.localeCompare(b.name);
     });
 
     const handleCreate = () => {
@@ -112,16 +138,22 @@ export default function TagsPageContent({ categories }: TagsPageProps) {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {sortedCategories.map(([category, count]) => (
-                        <Link key={category} href={`/tag/${category}`}>
+                    {sortedCategories.map((category) => (
+                        <Link key={category.slug} href={`/tag/${category.slug}`}>
                             <Card className="bg-zinc-900/40 border-zinc-800 hover:border-emerald-500/50 hover:bg-zinc-900/60 transition-all cursor-pointer h-full group">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                     <CardTitle className="text-base font-medium text-zinc-200 group-hover:text-emerald-400 transition-colors">
-                                        {category}
+                                        {category.name}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold text-emerald-500">{count}</div>
+                                    <div className="text-2xl font-bold text-emerald-500">
+                                        {counts ? (
+                                            counts[category.name] ?? 0
+                                        ) : (
+                                            <Skeleton className="h-8 w-12" />
+                                        )}
+                                    </div>
                                     <p className="text-xs text-zinc-500">problems</p>
                                 </CardContent>
                             </Card>

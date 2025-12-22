@@ -1,16 +1,15 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getAllSolutions, getPaginatedSolutionsByTag } from "@/lib/solutions";
+import { getAllCategories, getPaginatedSolutionsByTag } from "@/lib/solutions";
 
 import { DashboardClient } from "@/components/dashboard-client";
 import { TagHeaderActions } from "@/components/tag-header-actions";
 
 // Return a list of `params` to populate the [slug] dynamic segment
 export async function generateStaticParams() {
-  const solutions = await getAllSolutions();
-  const categories = new Set(solutions.flatMap((s) => s.categories));
-  return Array.from(categories).map((category) => ({
-    slug: category,
+  const categories = await getAllCategories();
+  return categories.map((category) => ({
+    slug: category.slug,
   }));
 }
 

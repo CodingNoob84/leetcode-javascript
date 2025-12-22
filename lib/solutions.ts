@@ -10,6 +10,7 @@ export interface Solution {
     categories: string[];
     content: string;
     description: string;
+    solution: string;
 }
 
 export interface GroupedSolutions {
@@ -38,6 +39,7 @@ export async function getSolutions(): Promise<GroupedSolutions[]> {
                 categories: [],
                 content: row.problem.content,
                 description: row.problem.description || "",
+                solution: row.problem.solution || "",
             });
         }
         if (row.category) {
@@ -85,6 +87,7 @@ export async function getSolution(slug: string): Promise<Solution | null> {
         categories: [],
         content: rows[0].problem.content,
         description: rows[0].problem.description || "",
+        solution: rows[0].problem.solution || "",
     };
 
     rows.forEach(row => {
@@ -119,6 +122,7 @@ export async function getAllSolutions(): Promise<Solution[]> {
                 categories: [],
                 content: row.problem.content,
                 description: row.problem.description || "",
+                solution: row.problem.solution || "",
             });
         }
         if (row.category) {
@@ -157,6 +161,7 @@ export async function getPaginatedSolutions(page: number, pageSize: number): Pro
             categories: [], // Populate if needed
             content: p.content,
             description: p.description || "",
+            solution: p.solution || "",
         });
     });
 
@@ -215,6 +220,7 @@ export async function getPaginatedSolutionsByTag(tag: string, page: number, page
             categories: [category.name], // at least include the current one
             content: p.problem.content,
             description: p.problem.description || "",
+            solution: p.problem.solution || "",
         });
     });
 
@@ -249,8 +255,79 @@ export async function getSolutionsByTag(tag: string): Promise<Solution[]> {
             categories: [category.name],
             content: p.problem.content,
             description: p.problem.description || "",
+            solution: p.problem.solution || "",
         });
     });
 
     return Array.from(solutionsMap.values());
 }
+
+export async function getAllCategories(): Promise<{ slug: string, name: string }[]> {
+    return db.select({
+        slug: schema.categories.slug,
+        name: schema.categories.name
+    }).from(schema.categories).orderBy(asc(schema.categories.name));
+}
+
+export async function getCategoriesWithCounts(): Promise<Record<string, number>> {
+    const results = await db.select({
+        name: schema.categories.name,
+        count: sql<number>`count(${schema.problemCategories.problemId})`
+    })
+        .from(schema.categories)
+        .leftJoin(schema.problemCategories, eq(schema.categories.id, schema.problemCategories.categoryId))
+        .groupBy(schema.categories.id, schema.categories.name);
+
+    const counts: Record<string, number> = {};
+    results.forEach(r => {
+        counts[r.name] = Number(r.count);
+    });
+    return counts;
+}
+export async function getAdjacentSolutions(leetcodeId: number, tagSlug?: string): Promise<{ prev: { slug: string, title: string } | null, next: { slug: string, title: string } | null }> {
+    let prevQuery = db.select({ slug: schema.problems.slug, title: schema.problems.title })
+        .from(schema.problems)
+        .where(sql`${schema.problems.leetcodeId} < ${leetcodeId}`)
+        .orderBy(sql`${schema.problems.leetcodeId} desc`)
+        .limit(1);
+
+    let nextQuery = db.select({ slug: schema.problems.slug, title: schema.problems.title })
+        .from(schema.problems)
+        .where(sql`${schema.problems.leetcodeId} > ${leetcodeId}`)
+        .orderBy(asc(schema.problems.leetcodeId))
+        .limit(1);
+
+    if (tagSlug) {
+        const [category] = await db.select().from(schema.categories).where(eq(schema.categories.slug, tagSlug));
+        if (category) {
+            prevQuery = db.select({ slug: schema.problems.slug, title: schema.problems.title })
+                .from(schema.problems)
+                .innerJoin(schema.problemCategories, eq(schema.problems.id, schema.problemCategories.problemId))
+                .where(and(
+                    eq(schema.problemCategories.categoryId, category.id),
+                    sql`${schema.problems.leetcodeId} < ${leetcodeId}`
+                ))
+                .orderBy(sql`${schema.problems.leetcodeId} desc`)
+                .limit(1);
+
+            nextQuery = db.select({ slug: schema.problems.slug, title: schema.problems.title })
+                .from(schema.problems)
+                .innerJoin(schema.problemCategories, eq(schema.problems.id, schema.problemCategories.problemId))
+                .where(and(
+                    eq(schema.problemCategories.categoryId, category.id),
+                    sql`${schema.problems.leetcodeId} > ${leetcodeId}`
+                ))
+                .orderBy(asc(schema.problems.leetcodeId))
+                .limit(1);
+        }
+    }
+
+    const [prevArr, nextArr] = await Promise.all([prevQuery, nextQuery]);
+
+    return {
+        prev: prevArr[0] || null,
+        next: nextArr[0] || null
+    };
+}
+
+import { and } from 'drizzle-orm';

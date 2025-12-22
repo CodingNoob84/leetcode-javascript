@@ -10,7 +10,8 @@ export const problems = pgTable("problems", {
     title: text("title").notNull(),
     description: text("description"),
     difficulty: difficultyEnum("difficulty").default("Unknown"),
-    content: text("content").notNull(), // The code solution
+    content: text("content").notNull(), // The raw content (including JSDoc)
+    solution: text("solution"), // The stripped code solution
     createdAt: timestamp("created_at").defaultNow(),
 });
 

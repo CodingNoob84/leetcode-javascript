@@ -1,28 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight, Tag } from "lucide-react";
-
+import { ArrowLeft, Edit2 } from "lucide-react";
 import {
-  getAllSolutions,
   getSolution,
-  getSolutionsByTag,
 } from "@/lib/solutions";
 import { CodeViewer } from "@/components/code-viewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { TagManager } from "@/components/tag-manager";
+import { SolutionNavButtons } from "@/components/solution-nav-buttons";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Return a list of `params` to populate the [slug] dynamic segment
-export async function generateStaticParams() {
-  const solutions = await getAllSolutions();
-  return solutions.map((solution) => ({
-    slug: solution.slug,
-  }));
-}
+// We remove generateStaticParams to allow for a more dynamic and responsive feel
+// as it was fetching all 2800+ solutions to pre-render every single page.
 
 export default async function SolutionPage({
   params,
@@ -36,30 +28,16 @@ export default async function SolutionPage({
   const tagSlug = resolvedSearchParams.tag;
 
   const solution = await getSolution(slug);
-  const allSolutions = tagSlug
-    ? await getSolutionsByTag(tagSlug)
-    : await getAllSolutions();
 
   if (!solution) {
     notFound();
   }
 
-  const currentIndex = allSolutions.findIndex((s) => s.id === solution.id);
-  const prevSolution = currentIndex > 0 ? allSolutions[currentIndex - 1] : null;
-  const nextSolution =
-    currentIndex < allSolutions.length - 1
-      ? allSolutions[currentIndex + 1]
-      : null;
-
   // Description is now available from the DB
   const description = solution.description || "No description available.";
 
-  // Code should be the content, but we want to strip the JSDoc comment if present for cleaner display
-  let code = solution.content;
-  const commentMatch = solution.content.match(/\/\*\*([\s\S]*?)\*\//);
-  if (commentMatch) {
-    code = solution.content.replace(commentMatch[0], "").trim();
-  }
+  // Use the new solution column directly
+  const code = solution.solution || solution.content;
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 flex flex-col font-sans">
@@ -88,21 +66,18 @@ export default async function SolutionPage({
                   variant="outline"
                   className={`
                         shrink-0
-                        ${
-                          solution.difficulty === "Easy"
-                            ? "border-emerald-500/20 text-emerald-400"
-                            : ""
-                        }
-                        ${
-                          solution.difficulty === "Medium"
-                            ? "border-amber-500/20 text-amber-400"
-                            : ""
-                        }
-                        ${
-                          solution.difficulty === "Hard"
-                            ? "border-red-500/20 text-red-400"
-                            : ""
-                        }
+                        ${solution.difficulty === "Easy"
+                      ? "border-emerald-500/20 text-emerald-400"
+                      : ""
+                    }
+                        ${solution.difficulty === "Medium"
+                      ? "border-amber-500/20 text-amber-400"
+                      : ""
+                    }
+                        ${solution.difficulty === "Hard"
+                      ? "border-red-500/20 text-red-400"
+                      : ""
+                    }
                     `}
                 >
                   {solution.difficulty}
@@ -116,55 +91,19 @@ export default async function SolutionPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {prevSolution ? (
-              <Link
-                href={`/solution/${prevSolution.slug}${
-                  tagSlug ? `?tag=${encodeURIComponent(tagSlug)}` : ""
-                }`}
-              >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-800"
-                >
-                  <ChevronLeft className="h-4 w-4 mr-1" /> Prev
-                </Button>
-              </Link>
-            ) : (
+            <Link href={`/solution/${solution.slug}/edit`}>
               <Button
                 variant="outline"
                 size="sm"
-                disabled
-                className="border-zinc-800 text-zinc-600"
+                className="border-zinc-700 text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/50 hover:bg-zinc-900"
               >
-                <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+                <Edit2 className="h-4 w-4 mr-1" /> Edit
               </Button>
-            )}
-
-            {nextSolution ? (
-              <Link
-                href={`/solution/${nextSolution.slug}${
-                  tagSlug ? `?tag=${encodeURIComponent(tagSlug)}` : ""
-                }`}
-              >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-800"
-                >
-                  Next <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              </Link>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled
-                className="border-zinc-800 text-zinc-600"
-              >
-                Next <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            )}
+            </Link>
+            <SolutionNavButtons
+              leetcodeId={parseInt(solution.id)}
+              tagSlug={tagSlug}
+            />
           </div>
         </div>
       </header>
@@ -184,54 +123,20 @@ export default async function SolutionPage({
               </Button>
             </Link>
             <div className="flex items-center gap-1">
-              {prevSolution ? (
-                <Link
-                  href={`/solution/${prevSolution.slug}${
-                    tagSlug ? `?tag=${encodeURIComponent(tagSlug)}` : ""
-                  }`}
-                >
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 border-zinc-800 bg-zinc-900 text-zinc-400"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                </Link>
-              ) : (
+              <Link href={`/solution/${solution.slug}/edit`}>
                 <Button
                   variant="outline"
                   size="icon"
-                  disabled
-                  className="h-8 w-8 border-zinc-900 bg-zinc-900/50 text-zinc-700"
+                  className="h-8 w-8 border-zinc-800 bg-zinc-900 text-zinc-400 mr-2"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <Edit2 className="h-4 w-4" />
                 </Button>
-              )}
-              {nextSolution ? (
-                <Link
-                  href={`/solution/${nextSolution.slug}${
-                    tagSlug ? `?tag=${encodeURIComponent(tagSlug)}` : ""
-                  }`}
-                >
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 border-zinc-800 bg-zinc-900 text-zinc-400"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled
-                  className="h-8 w-8 border-zinc-900 bg-zinc-900/50 text-zinc-700"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              )}
+              </Link>
+              <SolutionNavButtons
+                leetcodeId={parseInt(solution.id)}
+                tagSlug={tagSlug}
+                isMobile
+              />
             </div>
           </div>
 
@@ -248,21 +153,18 @@ export default async function SolutionPage({
             <Badge
               variant="outline"
               className={`
-                        ${
-                          solution.difficulty === "Easy"
-                            ? "border-emerald-500/20 text-emerald-400"
-                            : ""
-                        }
-                        ${
-                          solution.difficulty === "Medium"
-                            ? "border-amber-500/20 text-amber-400"
-                            : ""
-                        }
-                        ${
-                          solution.difficulty === "Hard"
-                            ? "border-red-500/20 text-red-400"
-                            : ""
-                        }
+                        ${solution.difficulty === "Easy"
+                  ? "border-emerald-500/20 text-emerald-400"
+                  : ""
+                }
+                        ${solution.difficulty === "Medium"
+                  ? "border-amber-500/20 text-amber-400"
+                  : ""
+                }
+                        ${solution.difficulty === "Hard"
+                  ? "border-red-500/20 text-red-400"
+                  : ""
+                }
                     `}
             >
               {solution.difficulty}

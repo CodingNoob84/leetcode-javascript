@@ -169,3 +169,18 @@ export async function deleteTag(slug: string) {
         return { success: false, error: "Failed to delete tag" };
     }
 }
+export async function updateProblem(slug: string, description: string, solution: string) {
+    try {
+        await db.update(schema.problems)
+            .set({ description, solution })
+            .where(eq(schema.problems.slug, slug));
+
+        revalidatePath(`/solution/${slug}`);
+        revalidatePath(`/solution/${slug}/edit`);
+        revalidatePath(`/`);
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to update problem:", error);
+        return { success: false, error: "Failed to update problem" };
+    }
+}

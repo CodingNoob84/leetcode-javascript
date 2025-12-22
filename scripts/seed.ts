@@ -27,6 +27,13 @@ async function main() {
             // 2. Upsert Problem
             const leetcodeId = parseInt(s.id);
 
+            // Extract solution by stripping JSDoc
+            let solution = s.content;
+            const commentMatch = s.content.match(/\/\*\*([\s\S]*?)\*\//);
+            if (commentMatch) {
+                solution = s.content.replace(commentMatch[0], "").trim();
+            }
+
             const [problem] = await db.insert(schema.problems).values({
                 leetcodeId,
                 slug: s.slug,
@@ -34,6 +41,7 @@ async function main() {
                 description: s.description,
                 difficulty: s.difficulty as "Easy" | "Medium" | "Hard" | "Unknown",
                 content: s.content,
+                solution: solution,
             }).onConflictDoUpdate({
                 target: schema.problems.slug,
                 set: {
@@ -41,6 +49,7 @@ async function main() {
                     description: s.description,
                     difficulty: s.difficulty as "Easy" | "Medium" | "Hard" | "Unknown",
                     content: s.content,
+                    solution: solution,
                 }
             }).returning();
 
