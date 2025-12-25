@@ -12,9 +12,14 @@ import { TagManager } from "@/components/tag-manager";
 import { SolutionNavButtons } from "@/components/solution-nav-buttons";
 import { LearningStatusSelector } from "@/components/learning-status-selector";
 import { NavContextManager } from "@/components/nav-context-manager";
+import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { EnhanceWithAI } from "@/components/enhance-with-ai";
+import { SolutionContent } from "@/components/solution-content";
+
+
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LearningStatus } from "@/app/actions";
+import { LearningStatus } from "@/server-actions/actions";
 
 // We remove generateStaticParams to allow for a more dynamic and responsive feel
 // as it was fetching all 2800+ solutions to pre-render every single page.
@@ -178,16 +183,23 @@ export default async function SolutionPage({
                 initialStatus={solution.learningStatus as LearningStatus}
               />
             </div>
-            <Link href={`/solution/${solution.slug}/edit`} className="mt-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-emerald-400 gap-2"
-              >
-                <Edit2 className="h-3.5 w-3.5" />
-                <span className="text-xs">Edit</span>
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <EnhanceWithAI slug={solution.slug} title={solution.title} />
+              <Link href={`/solution/${solution.slug}/edit?${new URLSearchParams({
+                ...(tagSlug ? { tag: tagSlug } : {}),
+                ...(resolvedSearchParams.status ? { status: resolvedSearchParams.status } : {})
+              }).toString()}`} className="mt-auto">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-emerald-400 gap-2"
+                >
+                  <Edit2 className="h-3.5 w-3.5" />
+                  <span className="text-xs">Edit</span>
+                </Button>
+              </Link>
+            </div>
+
           </div>
         </div>
 
@@ -215,20 +227,26 @@ export default async function SolutionPage({
             </div>
 
             <TabsContent value="description" className="flex-1 p-4 mt-0">
-              <div className="prose prose-invert prose-sm max-w-none pb-20">
-                <pre className="whitespace-pre-wrap font-sans text-zinc-300 text-sm leading-relaxed">
-                  {description}
-                </pre>
-              </div>
+              <SolutionContent
+                slug={slug}
+                initialData={solution}
+                mode="description"
+                isMobile
+              />
             </TabsContent>
+
+
 
             <TabsContent
               value="solution"
               className="flex-1 p-0 mt-0 h-full min-h-[500px]"
             >
-              <div className="h-full bg-zinc-950">
-                <CodeViewer code={code} />
-              </div>
+              <SolutionContent
+                slug={slug}
+                initialData={solution}
+                mode="solution"
+                isMobile
+              />
             </TabsContent>
           </Tabs>
         </div>
@@ -261,15 +279,22 @@ export default async function SolutionPage({
             </div>
           </div>
 
-          <Link href={`/solution/${solution.slug}/edit`}>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-zinc-700 text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/50 hover:bg-zinc-900"
-            >
-              <Edit2 className="h-4 w-4 mr-2" /> Edit Solution
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <EnhanceWithAI slug={solution.slug} title={solution.title} />
+            <Link href={`/solution/${solution.slug}/edit?${new URLSearchParams({
+              ...(tagSlug ? { tag: tagSlug } : {}),
+              ...(resolvedSearchParams.status ? { status: resolvedSearchParams.status } : {})
+            }).toString()}`}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-zinc-700 text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/50 hover:bg-zinc-900"
+              >
+                <Edit2 className="h-4 w-4 mr-2" /> Edit Solution
+              </Button>
+            </Link>
+          </div>
+
         </div>
 
         <div className="flex flex-1 flex-col lg:flex-row gap-6 lg:overflow-hidden">
@@ -278,13 +303,13 @@ export default async function SolutionPage({
             <div className="p-4 border-b border-zinc-800 bg-zinc-900/50">
               <h2 className="font-semibold text-zinc-200">Problem Description</h2>
             </div>
-            <ScrollArea className="flex-1 p-4">
-              <div className="prose prose-invert prose-sm max-w-none">
-                <pre className="whitespace-pre-wrap font-sans text-zinc-300 text-sm leading-relaxed">
-                  {description}
-                </pre>
-              </div>
-            </ScrollArea>
+            <SolutionContent
+              slug={slug}
+              initialData={solution}
+              mode="description"
+            />
+
+
           </div>
 
           {/* Code Column */}
@@ -307,9 +332,11 @@ export default async function SolutionPage({
                 JavaScript
               </Badge>
             </div>
-            <div className="flex-1 overflow-hidden bg-zinc-950">
-              <CodeViewer code={code} />
-            </div>
+            <SolutionContent
+              slug={slug}
+              initialData={solution}
+              mode="solution"
+            />
           </div>
         </div>
       </main>

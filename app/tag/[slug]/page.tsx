@@ -43,9 +43,9 @@ export default async function TagPage({
             </h1>
           </div>
 
-          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-6 w-full md:w-auto">
+          <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-6 w-full xl:w-auto">
             {analytics && (
-              <div className="w-full md:w-80">
+              <div className="w-full xl:w-auto xl:min-w-[450px]">
                 <LearningAnalytics analytics={analytics} />
               </div>
             )}

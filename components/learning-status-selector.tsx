@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Check, ChevronDown, BookOpen, CheckCircle2, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,8 +9,10 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { updateLearningStatus, LearningStatus } from "@/app/actions";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { updateLearningStatus, LearningStatus } from "@/server-actions/actions";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface LearningStatusSelectorProps {
     slug: string;
@@ -42,23 +44,39 @@ const statusConfig = {
 };
 
 export function LearningStatusSelector({ slug, initialStatus }: LearningStatusSelectorProps) {
+    const queryClient = useQueryClient();
     const [status, setStatus] = useState<LearningStatus>(initialStatus);
-    const [isPending, startTransition] = useTransition();
+
+    const mutation = useMutation({
+        mutationFn: ({ newStatus }: { newStatus: LearningStatus }) =>
+            updateLearningStatus(slug, newStatus),
+        onMutate: async ({ newStatus }) => {
+            await queryClient.cancelQueries({ queryKey: ["solution", slug] });
+            const previousStatus = status;
+            setStatus(newStatus);
+            return { previousStatus };
+        },
+        onError: (err, variables, context) => {
+            if (context?.previousStatus) {
+                setStatus(context.previousStatus);
+            }
+            toast.error("Failed to update status");
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ["solution", slug] });
+            queryClient.invalidateQueries({ queryKey: ["learning-analytics"] });
+        },
+        onSuccess: () => {
+            toast.success("Status updated!");
+        }
+    });
 
     const handleStatusChange = (newStatus: LearningStatus) => {
         if (newStatus === status) return;
-
-        startTransition(async () => {
-            const res = await updateLearningStatus(slug, newStatus);
-            if (res.success) {
-                setStatus(newStatus);
-            } else {
-                alert("Failed to update status");
-            }
-        });
+        mutation.mutate({ newStatus });
     };
 
-    const current = statusConfig[status];
+    const current = statusConfig[status as keyof typeof statusConfig];
     const Icon = current.icon;
 
     return (
@@ -71,7 +89,7 @@ export function LearningStatusSelector({ slug, initialStatus }: LearningStatusSe
                         current.bgColor,
                         current.borderColor
                     )}
-                    disabled={isPending}
+                    disabled={mutation.isPending}
                 >
                     <Icon className={cn("h-4 w-4", current.color)} />
                     <span className={cn("text-sm font-medium", current.color)}>{current.label}</span>

@@ -3,7 +3,9 @@
 import { db } from "@/lib/db";
 import * as schema from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { GoogleGenAI } from "@google/genai";
+
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 export async function addTagToProblem(slug: string, tagName: string) {
     try {
@@ -54,11 +56,6 @@ export async function addTagToProblem(slug: string, tagName: string) {
             }
         }
 
-        revalidatePath(`/solution/${slug}`);
-        revalidatePath(`/tag/${tagSlug}`);
-        revalidatePath(`/tag/uncategorized`); // Always revalidate uncategorized
-        revalidatePath(`/tags`);
-        revalidatePath(`/`);
         return { success: true };
     } catch (error) {
         console.error("Failed to add tag:", error);
@@ -106,11 +103,6 @@ export async function removeTagFromProblem(slug: string, tagName: string) {
             });
         }
 
-        revalidatePath(`/solution/${slug}`);
-        revalidatePath(`/tag/${tagSlug}`);
-        revalidatePath(`/tag/uncategorized`);
-        revalidatePath(`/tags`);
-        revalidatePath(`/`);
         return { success: true };
     } catch (error) {
         console.error("Failed to remove tag:", error);
@@ -130,7 +122,6 @@ export async function createTag(tagName: string) {
             });
         }
 
-        revalidatePath(`/tags`);
         return { success: true };
     } catch (error) {
         console.error("Failed to create tag:", error);
@@ -158,9 +149,6 @@ export async function updateTagName(oldSlug: string, newName: string) {
             .set({ name: newName, slug: newSlug })
             .where(eq(schema.categories.slug, oldSlug));
 
-        revalidatePath(`/tags`);
-        revalidatePath(`/tag/${oldSlug}`);
-        revalidatePath(`/tag/${newSlug}`);
         return { success: true, newSlug };
     } catch (error) {
         console.error("Failed to update tag:", error);
@@ -170,22 +158,6 @@ export async function updateTagName(oldSlug: string, newName: string) {
 
 export async function deleteTag(slug: string) {
     try {
-        await db.delete(schema.categories).where(eq(schema.categories.slug, slug));
-
-        // Cascade delete of problem_categories is handled by DB FK if defined, 
-        // or we should manually delete. Schema definition for relations exists but Drizzle doesn't enforce cascade on delete in app code 
-        // unless defined in schema with `onDelete: 'cascade'`.
-        // Let's check schema/migration. Usually good to be explicit if not sure.
-        // But assuming standar ref, we might need to delete links first or rely on constraints.
-        // Let's try explicit delete of links first to be safe.
-
-        // Wait, logic: delete from categories where slug matches.
-        // But first get ID.
-
-        // Actually, let's just let the DB handle it if configured, or manually does it.
-        // Given existing schema doesn't seemingly explicitly state `onDelete: cascade` in `schema.ts`,
-        // I should manually clean up `problemCategories`.
-
         const category = await db.query.categories.findFirst({
             where: eq(schema.categories.slug, slug)
         });
@@ -223,28 +195,26 @@ export async function deleteTag(slug: string) {
             }
         }
 
-        revalidatePath(`/tags`);
         return { success: true };
     } catch (error) {
         console.error("Failed to delete tag:", error);
         return { success: false, error: "Failed to delete tag" };
     }
 }
+
 export async function updateProblem(slug: string, description: string, solution: string) {
     try {
         await db.update(schema.problems)
             .set({ description, solution })
             .where(eq(schema.problems.slug, slug));
 
-        revalidatePath(`/solution/${slug}`);
-        revalidatePath(`/solution/${slug}/edit`);
-        revalidatePath(`/`);
         return { success: true };
     } catch (error) {
         console.error("Failed to update problem:", error);
         return { success: false, error: "Failed to update problem" };
     }
 }
+
 export async function bulkAddTagByLeetcodeIds(leetcodeIds: number[], tagSlug: string) {
     try {
         const category = await db.query.categories.findFirst({
@@ -296,11 +266,6 @@ export async function bulkAddTagByLeetcodeIds(leetcodeIds: number[], tagSlug: st
             }
         }
 
-        revalidatePath(`/tag/${tagSlug}`);
-        revalidatePath(`/tag/uncategorized`);
-        revalidatePath(`/tags`);
-        revalidatePath(`/`);
-
         return {
             success: true,
             addedCount: newProblemIds.length,
@@ -320,17 +285,55 @@ export async function updateLearningStatus(slug: string, status: LearningStatus)
             .set({ learningStatus: status })
             .where(eq(schema.problems.slug, slug));
 
-        revalidatePath(`/solution/${slug}`);
-        revalidatePath(`/`);
-        revalidatePath(`/tags`);
-
-        // Revalidate all tag pages since filtering might depend on status
-        const allTags = await db.select({ slug: schema.categories.slug }).from(schema.categories);
-        allTags.forEach(tag => revalidatePath(`/tag/${tag.slug}`));
-
         return { success: true };
     } catch (error) {
         console.error("Failed to update learning status:", error);
         return { success: false, error: "Failed to update learning status" };
+    }
+}
+
+export async function enhanceProblemWithAI(slug: string, title: string) {
+    try {
+        if (!process.env.GEMINI_API_KEY) {
+            throw new Error("GEMINI_API_KEY is not configured");
+        }
+
+        const prompt = `Provide a detailed solution for the LeetCode problem: "${title}". 
+
+Format the response as a JSON object with two fields:
+- "description": The problem description in professional Markdown format. 
+  - Use headers (##) for sections like "Example 1", "Constraints".
+  - Use **bold** for key terms and "Example" labels.
+  - Use code blocks ( \`\`\` ) for example inputs, outputs, and explanations.
+  - Ensure the description is clear, concise, and well-formatted.
+- "solution": One clean, optimized JavaScript solution with comments explaining the important lines.
+
+Ensure the "solution" field ONLY contains the JavaScript code, and the "description" field ONLY contains the Markdown description. Do not include triple backticks for JSON formatting in the response, just the raw JSON object.`;
+
+        const result = await genAI.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: [{ parts: [{ text: prompt }] }]
+        });
+
+        const text = result.text || "";
+
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            throw new Error("Failed to parse AI response as JSON");
+        }
+
+        const enhancedData = JSON.parse(jsonMatch[0]);
+
+        await db.update(schema.problems)
+            .set({
+                description: enhancedData.description,
+                solution: enhancedData.solution
+            })
+            .where(eq(schema.problems.slug, slug));
+
+        return { success: true };
+    } catch (error) {
+        console.error("AI Enhancement failed:", error);
+        return { success: false, error: error instanceof Error ? error.message : "AI Enhancement failed" };
     }
 }

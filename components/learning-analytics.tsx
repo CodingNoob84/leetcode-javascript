@@ -86,29 +86,29 @@ export function LearningAnalytics({ analytics }: LearningAnalyticsProps) {
             </div>
 
             {/* Detailed Desktop View: Cards */}
-            <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="hidden md:grid grid-cols-3 gap-3">
                 {stats.map((stat, index) => (
                     <motion.div
                         key={stat.label}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
-                        className={`p-4 rounded-xl border ${stat.borderColor} ${stat.bgColor} flex flex-col gap-3`}
+                        className={`p-2.5 rounded-xl border ${stat.borderColor} ${stat.bgColor} flex flex-col gap-2 min-w-0`}
                     >
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <stat.icon className={`h-5 w-5 ${stat.textColor}`} />
-                                <span className="text-sm font-medium text-zinc-300">{stat.label}</span>
+                        <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <stat.icon className={`h-4 w-4 shrink-0 ${stat.textColor}`} />
+                                <span className="text-[11px] font-bold text-zinc-400 truncate uppercase tracking-tight">{stat.label}</span>
                             </div>
-                            <span className="text-2xl font-bold text-zinc-100">{stat.count}</span>
+                            <span className="text-base font-black text-zinc-100">{stat.count}</span>
                         </div>
 
                         <div className="space-y-1">
-                            <div className="flex justify-between text-[10px] text-zinc-500 uppercase tracking-wider font-bold">
+                            <div className="flex justify-between text-[9px] text-zinc-500 uppercase tracking-tighter font-black">
                                 <span>Progress</span>
                                 <span>{Math.round(stat.percent)}%</span>
                             </div>
-                            <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
+                            <div className="h-1 w-full bg-zinc-900/50 rounded-full overflow-hidden">
                                 <motion.div
                                     initial={{ width: 0 }}
                                     animate={{ width: `${stat.percent}%` }}

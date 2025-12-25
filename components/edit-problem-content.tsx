@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Loader2, Trash2, Copy, ClipboardCheck } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Trash2, Copy } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { updateProblem } from "@/app/actions";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { updateProblem } from "@/server-actions/actions";
 import { Textarea } from "./ui/textarea";
 
 interface EditProblemContentProps {
@@ -20,39 +20,56 @@ interface EditProblemContentProps {
         solution: string;
         id: string;
     };
+    tag?: string;
+    status?: string;
 }
 
-export function EditProblemContent({ problem }: EditProblemContentProps) {
+export function EditProblemContent({ problem, tag, status }: EditProblemContentProps) {
     const [description, setDescription] = useState(problem.description);
     const [solution, setSolution] = useState(problem.solution);
-    const [isSaving, setIsSaving] = useState(false);
     const router = useRouter();
+    const queryClient = useQueryClient();
 
-    const handleSave = async () => {
-        setIsSaving(true);
-        try {
-            const res = await updateProblem(problem.slug, description, solution);
+    const mutation = useMutation({
+        mutationFn: () => updateProblem(problem.slug, description, solution),
+        onSuccess: (res) => {
             if (res.success) {
                 toast.success("Problem updated successfully");
-                router.push(`/solution/${problem.slug}`);
+                queryClient.invalidateQueries({ queryKey: ["solution", problem.slug] });
+
+                // Construct redirect URL with filters
+                const params = new URLSearchParams();
+                if (tag) params.set("tag", tag);
+                if (status) params.set("status", status);
+
+                const queryString = params.toString();
+                const redirectPath = `/solution/${problem.slug}${queryString ? `?${queryString}` : ""}`;
+
+                router.push(redirectPath);
                 router.refresh();
             } else {
                 toast.error(res.error || "Failed to update problem");
             }
-        } catch (err) {
-            toast.error("An error occurred while saving");
-            console.error(err);
-        } finally {
-            setIsSaving(false);
         }
+    });
+
+    const handleSave = () => {
+        mutation.mutate();
     };
+
+    // Construct back link with filters
+    const backParams = new URLSearchParams();
+    if (tag) backParams.set("tag", tag);
+    if (status) backParams.set("status", status);
+    const backQuery = backParams.toString();
+    const backLink = `/solution/${problem.slug}${backQuery ? `?${backQuery}` : ""}`;
 
     return (
         <div className="min-h-screen bg-zinc-950 text-zinc-50 p-4 md:p-8">
             <div className="max-w-5xl mx-auto space-y-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Link href={`/solution/${problem.slug}`}>
+                        <Link href={backLink}>
                             <Button variant="ghost" size="icon" className="text-zinc-400">
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
@@ -63,10 +80,10 @@ export function EditProblemContent({ problem }: EditProblemContentProps) {
                     </div>
                     <Button
                         onClick={handleSave}
-                        disabled={isSaving}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white"
+                        disabled={mutation.isPending}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
                     >
-                        {isSaving ? (
+                        {mutation.isPending ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
                             <Save className="mr-2 h-4 w-4" />

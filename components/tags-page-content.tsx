@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,10 +17,12 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-
-import { createTag } from "@/app/actions"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { createTag } from "@/server-actions/actions"
+import { getCategoriesWithCounts } from "@/server-actions/queries"
 import { useRouter } from "next/navigation"
 import { Label } from "./ui/label";
+import { toast } from "sonner"
 
 interface CategoryInfo {
     name: string;
@@ -32,32 +34,38 @@ interface TagsPageProps {
 }
 
 export default function TagsPageContent({ initialCategories }: TagsPageProps) {
-    const [counts, setCounts] = useState<Record<string, number> | null>(null);
     const [open, setOpen] = useState(false);
     const [newItemName, setNewItemName] = useState("");
-    const [isPending, startTransition] = useTransition();
+    const queryClient = useQueryClient();
     const router = useRouter();
 
-    useEffect(() => {
-        async function fetchCounts() {
-            try {
-                const res = await fetch("/api/categories/counts");
-                if (res.ok) {
-                    const data = await res.json();
-                    setCounts(data);
-                }
-            } catch (err) {
-                console.error("Failed to fetch tag counts:", err);
+    const { data: counts } = useQuery({
+        queryKey: ["tag-counts"],
+        queryFn: () => getCategoriesWithCounts(),
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const mutation = useMutation({
+        mutationFn: (name: string) => createTag(name),
+        onSuccess: (res) => {
+            if (res.success) {
+                toast.success("Tag created!");
+                setOpen(false);
+                setNewItemName("");
+                queryClient.invalidateQueries({ queryKey: ["tag-counts"] });
+                queryClient.invalidateQueries({ queryKey: ["all-tags"] });
+                router.refresh();
+            } else {
+                toast.error(res.error || "Failed to create tag");
             }
         }
-        fetchCounts();
-    }, []);
+    });
 
     // Sort categories by count if available, otherwise by name
     const sortedCategories = [...initialCategories].sort((a, b) => {
         if (counts) {
-            const countA = counts[a.name] || 0;
-            const countB = counts[b.name] || 0;
+            const countA = (counts as Record<string, number>)[a.name] || 0;
+            const countB = (counts as Record<string, number>)[b.name] || 0;
             if (countB !== countA) return countB - countA;
         }
         return a.name.localeCompare(b.name);
@@ -65,17 +73,7 @@ export default function TagsPageContent({ initialCategories }: TagsPageProps) {
 
     const handleCreate = () => {
         if (!newItemName.trim()) return;
-
-        startTransition(async () => {
-            const res = await createTag(newItemName);
-            if (res.success) {
-                setOpen(false);
-                setNewItemName("");
-                router.refresh();
-            } else {
-                console.error(res.error);
-            }
-        });
+        mutation.mutate(newItemName);
     };
 
     return (
@@ -127,10 +125,10 @@ export default function TagsPageContent({ initialCategories }: TagsPageProps) {
                             <DialogFooter>
                                 <Button
                                     onClick={handleCreate}
-                                    disabled={isPending}
+                                    disabled={mutation.isPending}
                                     className="bg-emerald-600 hover:bg-emerald-700 text-white"
                                 >
-                                    {isPending ? "Creating..." : "Create Tag"}
+                                    {mutation.isPending ? "Creating..." : "Create Tag"}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
@@ -149,7 +147,7 @@ export default function TagsPageContent({ initialCategories }: TagsPageProps) {
                                 <CardContent>
                                     <div className="text-2xl font-bold text-emerald-500">
                                         {counts ? (
-                                            counts[category.name] ?? 0
+                                            (counts as Record<string, number>)[category.name] ?? 0
                                         ) : (
                                             <Skeleton className="h-8 w-12" />
                                         )}

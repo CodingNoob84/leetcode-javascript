@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useTransition, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
-import { Check, ChevronsUpDown, Plus, X } from "lucide-react"
+import { Plus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
     Command,
@@ -11,7 +11,6 @@ import {
     CommandInput,
     CommandItem,
     CommandList,
-    CommandSeparator,
 } from "@/components/ui/command"
 import {
     Popover,
@@ -19,8 +18,10 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
-import { addTagToProblem, removeTagFromProblem, getAllTags } from "@/app/actions"
-import { toast } from "sonner" // assuming sonner or similar usage, otherwise alert
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { addTagToProblem, removeTagFromProblem } from "@/server-actions/actions"
+import { getAllTags } from "@/server-actions/queries"
+import { toast } from "sonner"
 
 interface TagManagerProps {
     slug: string;
@@ -29,37 +30,49 @@ interface TagManagerProps {
 
 export function TagManager({ slug, currentTags }: TagManagerProps) {
     const [open, setOpen] = useState(false)
-    const [availableTags, setAvailableTags] = useState<{ id: number, name: string, slug: string }[]>([])
-    const [pending, startTransition] = useTransition()
     const [inputValue, setInputValue] = useState("")
+    const queryClient = useQueryClient()
 
-    useEffect(() => {
-        getAllTags().then(tags => setAvailableTags(tags));
-    }, [open]); // Refresh when opened
+    const { data: availableTags = [] } = useQuery({
+        queryKey: ["all-tags"],
+        queryFn: () => getAllTags(),
+        enabled: open
+    })
+
+    const addTagMutation = useMutation({
+        mutationFn: (tagName: string) => addTagToProblem(slug, tagName),
+        onSuccess: (res) => {
+            if (res.success) {
+                queryClient.invalidateQueries({ queryKey: ["solution", slug] })
+                queryClient.invalidateQueries({ queryKey: ["all-tags"] })
+                toast.success("Tag added!")
+            } else {
+                toast.error(res.error || "Failed to add tag")
+            }
+        }
+    })
+
+    const removeTagMutation = useMutation({
+        mutationFn: (tagName: string) => removeTagFromProblem(slug, tagName),
+        onSuccess: (res) => {
+            if (res.success) {
+                queryClient.invalidateQueries({ queryKey: ["solution", slug] })
+                toast.success("Tag removed!")
+            } else {
+                toast.error(res.error || "Failed to remove tag")
+            }
+        }
+    })
 
     const handleAddTag = (tagName: string) => {
-        startTransition(async () => {
-            const res = await addTagToProblem(slug, tagName);
-            if (res.success) {
-                // Optimistically updated by server revalidate, but we can also fetch available tags again
-                getAllTags().then(tags => setAvailableTags(tags));
-            } else {
-                console.error(res.error);
-            }
-        });
+        addTagMutation.mutate(tagName);
     };
 
     const handleRemoveTag = (tagName: string) => {
-        startTransition(async () => {
-            const res = await removeTagFromProblem(slug, tagName);
-            if (!res.success) {
-                console.error(res.error);
-            }
-        });
+        removeTagMutation.mutate(tagName);
     };
 
-    // Filter available tags to excludes ones already added
-    const unselectedTags = availableTags.filter(t => !currentTags.find(ct => ct.slug === t.slug));
+    const unselectedTags = (availableTags as any[]).filter(t => !currentTags.find(ct => ct.slug === t.slug));
 
     return (
         <div className="flex flex-wrap items-center gap-2">
@@ -71,6 +84,7 @@ export function TagManager({ slug, currentTags }: TagManagerProps) {
                     <button
                         onClick={() => handleRemoveTag(tag.name)}
                         className="hover:text-red-400 focus:outline-none ml-1 rounded-full hover:bg-zinc-600 p-0.5 transition-colors"
+                        disabled={removeTagMutation.isPending}
                     >
                         <X className="h-3 w-3" />
                         <span className="sr-only">Remove {tag.name}</span>
@@ -99,6 +113,7 @@ export function TagManager({ slug, currentTags }: TagManagerProps) {
                                         variant="secondary"
                                         size="sm"
                                         className="w-full text-xs h-7"
+                                        disabled={addTagMutation.isPending}
                                         onClick={() => {
                                             if (inputValue.trim()) {
                                                 handleAddTag(inputValue.trim());
@@ -114,9 +129,9 @@ export function TagManager({ slug, currentTags }: TagManagerProps) {
                             <CommandGroup heading="Available Tags">
                                 {unselectedTags.map(tag => (
                                     <CommandItem
-                                        key={tag.id}
+                                        key={tag.slug}
                                         value={tag.name}
-                                        onSelect={(currentValue: string) => {
+                                        onSelect={() => {
                                             handleAddTag(tag.name);
                                             setOpen(false);
                                         }}

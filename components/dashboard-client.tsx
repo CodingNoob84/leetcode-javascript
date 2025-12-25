@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Code2, Layers, Zap } from "lucide-react";
+import { Search, Layers, Filter, X, CheckCircle2, BookOpen, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import {
@@ -10,7 +10,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -26,8 +25,8 @@ import {
   PaginationEllipsis,
 } from "@/components/ui/pagination";
 
-import { X, CheckCircle2, BookOpen, Circle, Filter } from "lucide-react";
-import { removeTagFromProblem } from "@/app/actions";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { removeTagFromProblem } from "@/server-actions/actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Button } from "./ui/button";
@@ -63,8 +62,6 @@ export function DashboardClient({
   totalSolutions,
   page,
   pageSize,
-  customTitle,
-  customDescription,
   allowTagRemoval,
   tagSlug,
   onPageChange,
@@ -74,31 +71,34 @@ export function DashboardClient({
 }: DashboardProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
+  const queryClient = useQueryClient();
 
-  const handleRemoveTag = async (
+  const removeTagMutation = useMutation({
+    mutationFn: ({ problemSlug, tagName }: { problemSlug: string; tagName: string }) =>
+      removeTagFromProblem(problemSlug, tagName),
+    onSuccess: (res, { tagName }) => {
+      if (res.success) {
+        toast.success(`Tag "${tagName}" removed`);
+        queryClient.invalidateQueries({ queryKey: ["tag-counts"] });
+        router.refresh();
+      } else {
+        toast.error("Failed to remove tag");
+      }
+    }
+  });
+
+  const handleRemoveTag = (
     e: React.MouseEvent,
     problemSlug: string,
     tagName: string
   ) => {
     e.preventDefault();
     e.stopPropagation();
-
-    try {
-      const res = await removeTagFromProblem(problemSlug, tagName);
-      if (res.success) {
-        toast.success(`Tag "${tagName}" removed`);
-        router.refresh(); // Or better optimistic update, but filter might change list
-      } else {
-        toast.error("Failed to remove tag");
-      }
-    } catch (err) {
-      console.error(err);
-    }
+    removeTagMutation.mutate({ problemSlug, tagName });
   };
 
   const totalPages = Math.ceil(totalSolutions / pageSize);
 
-  // Client-side search within current page (temporary, ideal is server-side)
   const filteredSolutions = solutions.filter(
     (s) =>
       s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -215,7 +215,6 @@ export function DashboardClient({
                       </div>
                     </CardHeader>
                     <CardContent className="flex-grow relative z-10 pointer-events-none">
-                      {/* Categories (if available) - currently solutions might need manual join for categories in list view if desired */}
                       {solution.categories &&
                         solution.categories.length > 0 && (
                           <div className="flex flex-wrap gap-2 mt-2 pointer-events-auto">
@@ -237,6 +236,7 @@ export function DashboardClient({
                                       handleRemoveTag(e, solution.slug, cat.name)
                                     }
                                     className="hover:text-red-400 focus:outline-none ml-1 rounded-full hover:bg-zinc-600 p-0.5 transition-colors"
+                                    disabled={removeTagMutation.isPending}
                                   >
                                     <X className="h-2 w-2" />
                                     <span className="sr-only">
@@ -277,19 +277,13 @@ export function DashboardClient({
                 </PaginationItem>
               )}
 
-              {/* Simplified pagination: First, Prev (if gap), Current, Next (if gap), Last */}
-              {/* Uses window.location or href replacement, but better to use simple logic for now */}
-              {/* NOTE: We need to preserve filtered params if any, or just use `?page=` */}
-              {/* Since this is reused in TagPage, the Base URL changes. */}
-              {/* We should probably accept a baseURL prop, or use standard anchor tags with current pathname + query */}
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                // Logic to center the window
                 let p = i + 1;
                 if (totalPages > 5) {
                   if (page > 3) p = page - 2 + i;
                   if (p > totalPages) p = totalPages - 4 + i;
                 }
-                if (p <= 0) return null; // should not happen with above logic but safe guard
+                if (p <= 0) return null;
 
                 return (
                   <PaginationItem key={p}>

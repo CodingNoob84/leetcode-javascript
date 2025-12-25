@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,8 +13,10 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { bulkAddTagByLeetcodeIds } from "@/app/actions";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { bulkAddTagByLeetcodeIds } from "@/server-actions/actions";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface BulkAddProblemsProps {
     tagSlug: string;
@@ -24,8 +26,23 @@ interface BulkAddProblemsProps {
 export function BulkAddProblems({ tagSlug, tagName }: BulkAddProblemsProps) {
     const [open, setOpen] = useState(false);
     const [idsString, setIdsString] = useState("");
-    const [isPending, startTransition] = useTransition();
+    const queryClient = useQueryClient();
     const router = useRouter();
+
+    const mutation = useMutation({
+        mutationFn: (ids: number[]) => bulkAddTagByLeetcodeIds(ids, tagSlug),
+        onSuccess: (res) => {
+            if (res.success) {
+                toast.success(`Problems added to "${tagName}"`);
+                setOpen(false);
+                setIdsString("");
+                queryClient.invalidateQueries({ queryKey: ["tag-counts"] });
+                router.refresh();
+            } else {
+                toast.error(res.error || "Failed to add problems");
+            }
+        }
+    });
 
     const handleBulkAdd = () => {
         const ids = idsString
@@ -34,17 +51,7 @@ export function BulkAddProblems({ tagSlug, tagName }: BulkAddProblemsProps) {
             .filter((id) => !isNaN(id));
 
         if (ids.length === 0) return;
-
-        startTransition(async () => {
-            const res = await bulkAddTagByLeetcodeIds(ids, tagSlug);
-            if (res.success) {
-                setOpen(false);
-                setIdsString("");
-                router.refresh();
-            } else {
-                alert(res.error || "Failed to add problems");
-            }
-        });
+        mutation.mutate(ids);
     };
 
     return (
@@ -74,10 +81,10 @@ export function BulkAddProblems({ tagSlug, tagName }: BulkAddProblemsProps) {
                 <DialogFooter>
                     <Button
                         onClick={handleBulkAdd}
-                        disabled={isPending || !idsString.trim()}
+                        disabled={mutation.isPending || !idsString.trim()}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white"
                     >
-                        {isPending ? "Adding..." : "Add Problems"}
+                        {mutation.isPending ? "Adding..." : "Add Problems"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

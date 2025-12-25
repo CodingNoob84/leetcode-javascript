@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,7 +22,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { updateTagName, deleteTag } from "@/app/actions"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { updateTagName, deleteTag } from "@/server-actions/actions"
 import { toast } from "sonner"
 
 interface TagHeaderActionsProps {
@@ -34,37 +35,48 @@ export function TagHeaderActions({ slug, currentName }: TagHeaderActionsProps) {
     const [isEditOpen, setIsEditOpen] = useState(false)
     const [isDeleteOpen, setIsDeleteOpen] = useState(false)
     const [newName, setNewName] = useState(currentName)
-    const [isPending, startTransition] = useTransition()
     const router = useRouter()
+    const queryClient = useQueryClient()
+
+    const updateMutation = useMutation({
+        mutationFn: () => updateTagName(slug, newName),
+        onSuccess: (res) => {
+            if (res.success) {
+                toast.success("Tag updated successfully")
+                setIsEditOpen(false)
+                queryClient.invalidateQueries({ queryKey: ["all-tags"] })
+                if (res.newSlug) {
+                    router.push(`/tag/${res.newSlug}`)
+                }
+            } else {
+                toast.error("Failed to update tag")
+            }
+        }
+    })
+
+    const deleteMutation = useMutation({
+        mutationFn: () => deleteTag(slug),
+        onSuccess: (res) => {
+            if (res.success) {
+                toast.success("Tag deleted successfully")
+                queryClient.invalidateQueries({ queryKey: ["all-tags"] })
+                router.push("/tags")
+            } else {
+                toast.error("Failed to delete tag")
+            }
+        }
+    })
 
     const handleUpdate = () => {
         if (!newName.trim() || newName === currentName) return;
-
-        startTransition(async () => {
-            const res = await updateTagName(slug, newName);
-            if (res.success) {
-                toast.success("Tag updated successfully");
-                setIsEditOpen(false);
-                if (res.newSlug) {
-                    router.push(`/tag/${res.newSlug}`);
-                }
-            } else {
-                toast.error("Failed to update tag");
-            }
-        });
+        updateMutation.mutate();
     }
 
     const handleDelete = () => {
-        startTransition(async () => {
-            const res = await deleteTag(slug);
-            if (res.success) {
-                toast.success("Tag deleted successfully");
-                router.push("/tags");
-            } else {
-                toast.error("Failed to delete tag");
-            }
-        });
+        deleteMutation.mutate();
     }
+
+    const isPending = updateMutation.isPending || deleteMutation.isPending;
 
     return (
         <div className="flex items-center gap-2">
@@ -93,7 +105,7 @@ export function TagHeaderActions({ slug, currentName }: TagHeaderActionsProps) {
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsEditOpen(false)}>Cancel</Button>
                         <Button onClick={handleUpdate} disabled={isPending} className="bg-emerald-600 hover:bg-emerald-700">
-                            {isPending ? "Saving..." : "Save Changes"}
+                            {updateMutation.isPending ? "Saving..." : "Save Changes"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -111,7 +123,7 @@ export function TagHeaderActions({ slug, currentName }: TagHeaderActionsProps) {
                     <AlertDialogFooter>
                         <AlertDialogCancel className="bg-transparent border-zinc-700 text-zinc-400 hover:bg-zinc-900 hover:text-white">Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white border-0">
-                            {isPending ? "Deleting..." : "Delete Tag"}
+                            {deleteMutation.isPending ? "Deleting..." : "Delete Tag"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
