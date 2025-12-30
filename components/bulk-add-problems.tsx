@@ -37,6 +37,7 @@ export function BulkAddProblems({ tagSlug, tagName }: BulkAddProblemsProps) {
                 setOpen(false);
                 setIdsString("");
                 queryClient.invalidateQueries({ queryKey: ["tag-counts"] });
+                queryClient.invalidateQueries({ queryKey: ["solutions"] });
                 router.refresh();
             } else {
                 toast.error(res.error || "Failed to add problems");

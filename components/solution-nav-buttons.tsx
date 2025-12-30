@@ -67,13 +67,13 @@ export function SolutionNavButtons({ leetcodeId, tagSlug, status, isMobile }: So
 
     if (isMobile) {
         return (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
                 {prevHref ? (
                     <Link href={prevHref}>
                         <Button
                             variant="outline"
                             size="icon"
-                            className="h-8 w-8 border-zinc-800 bg-zinc-900 text-zinc-400"
+                            className="h-9 w-9 border-zinc-800 bg-zinc-900/50 text-zinc-400 rounded-xl hover:text-emerald-400 hover:border-emerald-500/30 transition-all"
                         >
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
@@ -83,7 +83,7 @@ export function SolutionNavButtons({ leetcodeId, tagSlug, status, isMobile }: So
                         variant="outline"
                         size="icon"
                         disabled
-                        className="h-8 w-8 border-zinc-900 bg-zinc-900/50 text-zinc-700"
+                        className="h-9 w-9 border-zinc-900/30 bg-zinc-950/30 text-zinc-700 rounded-xl"
                     >
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
@@ -93,7 +93,7 @@ export function SolutionNavButtons({ leetcodeId, tagSlug, status, isMobile }: So
                         <Button
                             variant="outline"
                             size="icon"
-                            className="h-8 w-8 border-zinc-800 bg-zinc-900 text-zinc-400"
+                            className="h-9 w-9 border-zinc-800 bg-zinc-900/50 text-zinc-400 rounded-xl hover:text-emerald-400 hover:border-emerald-500/30 transition-all"
                         >
                             <ChevronRight className="h-4 w-4" />
                         </Button>
@@ -103,7 +103,7 @@ export function SolutionNavButtons({ leetcodeId, tagSlug, status, isMobile }: So
                         variant="outline"
                         size="icon"
                         disabled
-                        className="h-8 w-8 border-zinc-900 bg-zinc-900/50 text-zinc-700"
+                        className="h-9 w-9 border-zinc-900/30 bg-zinc-950/30 text-zinc-700 rounded-xl"
                     >
                         <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -118,20 +118,18 @@ export function SolutionNavButtons({ leetcodeId, tagSlug, status, isMobile }: So
                 <Link href={prevHref}>
                     <Button
                         variant="outline"
-                        size="sm"
-                        className="border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                        className="h-10 px-4 border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-white hover:border-zinc-700 rounded-xl transition-all font-bold gap-2"
                     >
-                        <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+                        <ChevronLeft className="h-4 w-4" /> Prev
                     </Button>
                 </Link>
             ) : (
                 <Button
                     variant="outline"
-                    size="sm"
                     disabled
-                    className="border-zinc-800 text-zinc-600"
+                    className="h-10 px-4 border-zinc-900/30 bg-zinc-950/30 text-zinc-700 rounded-xl font-bold gap-2"
                 >
-                    <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+                    <ChevronLeft className="h-4 w-4" /> Prev
                 </Button>
             )}
 
@@ -139,20 +137,18 @@ export function SolutionNavButtons({ leetcodeId, tagSlug, status, isMobile }: So
                 <Link href={nextHref}>
                     <Button
                         variant="outline"
-                        size="sm"
-                        className="border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                        className="h-10 px-4 border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-white hover:border-zinc-700 rounded-xl transition-all font-bold gap-2"
                     >
-                        Next <ChevronRight className="h-4 w-4 ml-1" />
+                        Next <ChevronRight className="h-4 w-4" />
                     </Button>
                 </Link>
             ) : (
                 <Button
                     variant="outline"
-                    size="sm"
                     disabled
-                    className="border-zinc-800 text-zinc-600"
+                    className="h-10 px-4 border-zinc-900/30 bg-zinc-950/30 text-zinc-700 rounded-xl font-bold gap-2"
                 >
-                    Next <ChevronRight className="h-4 w-4 ml-1" />
+                    Next <ChevronRight className="h-4 w-4" />
                 </Button>
             )}
         </div>

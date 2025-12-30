@@ -33,3 +33,7 @@ export async function getAdjacentSolutions(leetcodeId: number, tagSlug?: string,
 export async function getAllTags() {
     return await solutions.getAllCategories();
 }
+
+export async function searchProblems(query: string) {
+    return await solutions.searchProblems(query);
+}

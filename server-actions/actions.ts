@@ -4,8 +4,25 @@ import { db } from "@/lib/db";
 import * as schema from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const zaiClient = new OpenAI({
+    apiKey: process.env.ZAI_API_KEY || "",
+    baseURL: process.env.ZAI_BASE_URL || "https://api.z.ai/api/paas/v4/"
+});
+
+const ENHANCE_PROMPT = (title: string) => `Provide a detailed solution for the LeetCode problem: "${title}". 
+
+Format the response as a JSON object with two fields:
+- "description": The problem description in professional Markdown format. 
+  - Use headers (##) for sections like "Example 1", "Constraints".
+  - Use **bold** for key terms and "Example" labels.
+  - Use code blocks ( \`\`\` ) for example inputs, outputs, and explanations.
+  - Ensure the description is clear, concise, and well-formatted.
+- "solution": One clean, optimized JavaScript solution with comments explaining the important lines.
+
+Ensure the "solution" field ONLY contains the JavaScript code, and the "description" field ONLY contains the Markdown description. Do not include triple backticks for JSON formatting in the response, just the raw JSON object.`;
 
 export async function addTagToProblem(slug: string, tagName: string) {
     try {
@@ -292,30 +309,33 @@ export async function updateLearningStatus(slug: string, status: LearningStatus)
     }
 }
 
-export async function enhanceProblemWithAI(slug: string, title: string) {
+export async function enhanceProblemWithAI(slug: string, title: string, provider: "gemini" | "zai" = "gemini") {
     try {
-        if (!process.env.GEMINI_API_KEY) {
-            throw new Error("GEMINI_API_KEY is not configured");
+        let text = "";
+
+        if (provider === "gemini") {
+            if (!process.env.GEMINI_API_KEY) {
+                throw new Error("GEMINI_API_KEY is not configured");
+            }
+            const result = await genAI.models.generateContent({
+                model: "gemini-2.0-flash",
+                contents: [{ parts: [{ text: ENHANCE_PROMPT(title) }] }]
+            });
+            text = result.text || "";
+        } else {
+            if (!process.env.ZAI_API_KEY) {
+                throw new Error("ZAI_API_KEY is not configured");
+            }
+            const completion = await zaiClient.chat.completions.create({
+                model: "glm-4.5-Flash",
+                messages: [
+                    { role: "system", content: "You are a helpful AI assistant that provides LeetCode solutions in JSON format." },
+                    { role: "user", content: ENHANCE_PROMPT(title) }
+                ],
+                response_format: { type: "json_object" }
+            });
+            text = completion.choices[0].message.content || "";
         }
-
-        const prompt = `Provide a detailed solution for the LeetCode problem: "${title}". 
-
-Format the response as a JSON object with two fields:
-- "description": The problem description in professional Markdown format. 
-  - Use headers (##) for sections like "Example 1", "Constraints".
-  - Use **bold** for key terms and "Example" labels.
-  - Use code blocks ( \`\`\` ) for example inputs, outputs, and explanations.
-  - Ensure the description is clear, concise, and well-formatted.
-- "solution": One clean, optimized JavaScript solution with comments explaining the important lines.
-
-Ensure the "solution" field ONLY contains the JavaScript code, and the "description" field ONLY contains the Markdown description. Do not include triple backticks for JSON formatting in the response, just the raw JSON object.`;
-
-        const result = await genAI.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: [{ parts: [{ text: prompt }] }]
-        });
-
-        const text = result.text || "";
 
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {

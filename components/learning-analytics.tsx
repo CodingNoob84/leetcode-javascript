@@ -52,33 +52,35 @@ export function LearningAnalytics({ analytics }: LearningAnalyticsProps) {
         <div className="mb-4">
             {/* Compact Mobile View: Segmented Progress Bar */}
             <div className="block md:hidden">
-                <div className="flex justify-between items-end mb-1.5 px-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                        Pattern Mastery: <span className="text-zinc-200">{analytics.counts["Mastered"] || 0} / {analytics.total}</span>
+                <div className="flex justify-between items-end mb-2 px-1">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                        Mastery <span className="text-zinc-200 ml-1">{analytics.counts["Mastered"] || 0} / {analytics.total}</span>
                     </span>
-                    <span className="text-xs font-bold text-emerald-500">
+                    <span className="text-xs font-black text-emerald-400">
                         {Math.round(analytics.percentages["Mastered"] || 0)}%
                     </span>
                 </div>
 
-                <div className="h-2 w-full bg-zinc-900 rounded-full flex overflow-hidden ring-1 ring-white/5">
+                <div className="h-2.5 w-full bg-zinc-900/50 rounded-full flex overflow-hidden border border-white/5 p-0.5">
                     {stats.filter(s => s.count > 0).map((stat, idx) => (
                         <motion.div
                             key={`segment-${stat.label}`}
                             initial={{ width: 0 }}
                             animate={{ width: `${stat.percent}%` }}
-                            transition={{ duration: 0.8, ease: "circOut", delay: idx * 0.1 }}
-                            className={`${stat.color} h-full`}
+                            transition={{ duration: 1, ease: [0.22, 1, 0.36, 1], delay: idx * 0.1 }}
+                            className={`${stat.color} h-full first:rounded-l-full last:rounded-r-full`}
                         />
                     ))}
                 </div>
 
-                <div className="flex gap-4 mt-2 px-1">
+                <div className="flex justify-between items-center mt-3 px-1">
                     {stats.map(stat => (
-                        <div key={`label-${stat.label}`} className="flex items-center gap-1.5">
-                            <div className={cn("h-1.5 w-1.5 rounded-full", stat.color)} />
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase">
-                                {stat.count} {stat.label}
+                        <div key={`label-${stat.label}`} className="flex flex-col items-center gap-1">
+                            <span className={cn("text-xs font-black", stat.textColor)}>
+                                {stat.count}
+                            </span>
+                            <span className="text-[8px] font-black text-zinc-600 uppercase tracking-widest leading-none">
+                                {stat.label}
                             </span>
                         </div>
                     ))}
@@ -86,36 +88,40 @@ export function LearningAnalytics({ analytics }: LearningAnalyticsProps) {
             </div>
 
             {/* Detailed Desktop View: Cards */}
-            <div className="hidden md:grid grid-cols-3 gap-3">
+            <div className="hidden md:grid grid-cols-3 gap-4">
                 {stats.map((stat, index) => (
                     <motion.div
                         key={stat.label}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
-                        className={`p-2.5 rounded-xl border ${stat.borderColor} ${stat.bgColor} flex flex-col gap-2 min-w-0`}
+                        className={`p-4 rounded-2xl glass-card flex flex-col gap-3 min-w-0 group`}
                     >
-                        <div className="flex items-center justify-between gap-1">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                                <stat.icon className={`h-4 w-4 shrink-0 ${stat.textColor}`} />
-                                <span className="text-[11px] font-bold text-zinc-400 truncate uppercase tracking-tight">{stat.label}</span>
+                        <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className={cn("p-2 rounded-xl", stat.bgColor, "ring-1", stat.borderColor)}>
+                                    <stat.icon className={`h-4 w-4 shrink-0 ${stat.textColor}`} />
+                                </div>
+                                <div>
+                                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.15em] block leading-none mb-1">{stat.label}</span>
+                                    <div className="flex items-baseline gap-1.5">
+                                        <span className="text-2xl font-black text-white leading-none">{stat.count}</span>
+                                        <span className="text-[10px] font-bold text-zinc-600">/ {analytics.total}</span>
+                                    </div>
+                                </div>
                             </div>
-                            <span className="text-base font-black text-zinc-100">{stat.count}</span>
+                            <div className={cn("text-xs font-black px-2 py-1 rounded-lg", stat.bgColor, stat.textColor)}>
+                                {Math.round(stat.percent)}%
+                            </div>
                         </div>
 
-                        <div className="space-y-1">
-                            <div className="flex justify-between text-[9px] text-zinc-500 uppercase tracking-tighter font-black">
-                                <span>Progress</span>
-                                <span>{Math.round(stat.percent)}%</span>
-                            </div>
-                            <div className="h-1 w-full bg-zinc-900/50 rounded-full overflow-hidden">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${stat.percent}%` }}
-                                    transition={{ duration: 1, ease: "easeOut", delay: index * 0.1 + 0.3 }}
-                                    className={`h-full ${stat.color} rounded-full`}
-                                />
-                            </div>
+                        <div className="h-1.5 w-full bg-zinc-950/50 rounded-full overflow-hidden border border-white/5">
+                            <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${stat.percent}%` }}
+                                transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1], delay: index * 0.1 + 0.3 }}
+                                className={`h-full ${stat.color} rounded-full shadow-[0_0_10px_rgba(0,0,0,0.5)]`}
+                            />
                         </div>
                     </motion.div>
                 ))}

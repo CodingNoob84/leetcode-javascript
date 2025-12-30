@@ -37,6 +37,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { GlobalSearch } from "./global-search";
 
 interface DashboardProps {
   solutions: Solution[];
@@ -69,7 +70,6 @@ export function DashboardClient({
   onStatusChange,
   analytics,
 }: DashboardProps) {
-  const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -99,65 +99,70 @@ export function DashboardClient({
 
   const totalPages = Math.ceil(totalSolutions / pageSize);
 
-  const filteredSolutions = solutions.filter(
-    (s) =>
-      s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.slug.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredSolutions = solutions;
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 font-sans selection:bg-zinc-800">
-      <div className="container mx-auto py-5 px-4">
-        {analytics && <LearningAnalytics analytics={analytics} />}
+      <div className="container mx-auto py-4 md:py-8 px-4">
+        {/* Hero Section - More compact on mobile */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 mb-8 md:mb-12">
+          <div className="space-y-1">
+            <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white">
+              LeetCode <span className="text-emerald-500">JS</span>
+            </h1>
+            <p className="text-zinc-500 text-sm md:text-lg font-medium max-w-md leading-snug">
+              Master JavaScript through LeetCode solutions, patterns, and AI-powered insights.
+            </p>
+          </div>
+          {analytics && (
+            <div className="w-full md:w-auto md:min-w-[400px]">
+              <LearningAnalytics analytics={analytics} />
+            </div>
+          )}
+        </div>
 
-        {/* Search & Actions */}
-        <div className="mb-8 max-w-4xl mx-auto flex flex-col md:flex-row gap-4 items-center">
-          <div className="relative flex-1 w-full text-left">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-zinc-500" />
-            <Input
-              placeholder="Search problems..."
-              className="pl-10 bg-zinc-900/50 border-zinc-800 focus:border-emerald-500 transition-colors w-full"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+        {/* Search & Actions - Optimized for mobile compactness */}
+        <div className="mb-6 flex flex-col md:flex-row gap-2 md:gap-4 items-center bg-zinc-900/40 p-1.5 md:p-2 rounded-xl md:rounded-2xl border border-white/5 backdrop-blur-md sticky top-2 z-30 shadow-2xl">
+          <div className="relative flex-1 w-full text-left group">
+            <GlobalSearch />
           </div>
 
-          <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
+          <div className="flex items-center gap-1.5 w-full md:w-auto">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
                   className={cn(
-                    "w-full md:w-auto border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-emerald-400 transition-all",
-                    statusFilter && "text-emerald-500 border-emerald-500/30 bg-emerald-500/5"
+                    "h-9 md:h-12 flex-1 md:w-auto px-3 md:px-6 border-zinc-800/30 bg-zinc-950/30 text-zinc-500 hover:text-emerald-400 hover:border-emerald-500/20 transition-all rounded-lg md:rounded-xl gap-2 text-[10px] md:text-sm font-bold uppercase tracking-wider",
+                    statusFilter && "text-emerald-400 border-emerald-500/20 bg-emerald-500/5"
                   )}
                 >
-                  <Filter className="mr-2 h-4 w-4" />
-                  {statusFilter || "All Status"}
+                  <Filter className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                  <span className="truncate">{statusFilter || "All Status"}</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-zinc-900 border-zinc-800 text-zinc-200">
-                <DropdownMenuItem onClick={() => onStatusChange?.("")} className="cursor-pointer">
+              <DropdownMenuContent align="end" className="w-44 md:w-48 bg-zinc-900 border-zinc-800 text-zinc-200 rounded-xl p-1 shadow-2xl">
+                <DropdownMenuItem onClick={() => onStatusChange?.("")} className="text-xs md:text-sm rounded-lg cursor-pointer focus:bg-zinc-800 focus:text-emerald-400">
                   All Status
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onStatusChange?.("Mastered")} className="gap-2 cursor-pointer">
+                <DropdownMenuItem onClick={() => onStatusChange?.("Mastered")} className="text-xs md:text-sm gap-2 cursor-pointer rounded-lg focus:bg-zinc-800 focus:text-emerald-400">
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Mastered
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onStatusChange?.("Learning")} className="gap-2 cursor-pointer">
+                <DropdownMenuItem onClick={() => onStatusChange?.("Learning")} className="text-xs md:text-sm gap-2 cursor-pointer rounded-lg focus:bg-zinc-800 focus:text-emerald-400">
                   <BookOpen className="h-4 w-4 text-blue-500" /> Learning
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onStatusChange?.("To Do")} className="gap-2 cursor-pointer">
+                <DropdownMenuItem onClick={() => onStatusChange?.("To Do")} className="text-xs md:text-sm gap-2 cursor-pointer rounded-lg focus:bg-zinc-800 focus:text-emerald-400">
                   <Circle className="h-4 w-4 text-zinc-400" /> To Do
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Link href="/tags" className="w-full md:w-auto">
+            <Link href="/tags" className="flex-1 md:w-auto">
               <Button
                 variant="outline"
-                className="w-full md:w-auto border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/50 hover:bg-zinc-900"
+                className="h-9 md:h-12 w-full md:w-auto px-3 md:px-6 border-zinc-800/30 bg-zinc-950/30 text-zinc-500 hover:text-emerald-400 hover:border-emerald-500/20 transition-all rounded-lg md:rounded-xl gap-2 text-[10px] md:text-sm font-bold uppercase tracking-wider"
               >
-                <Layers className="mr-2 h-4 w-4" />
+                <Layers className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 Tags
               </Button>
             </Link>
@@ -175,7 +180,7 @@ export function DashboardClient({
                 transition={{ delay: idx * 0.05 }}
               >
                 <div className="h-full">
-                  <Card className="bg-zinc-900/40 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/40 transition-all group h-full flex flex-col relative">
+                  <Card className="glass-card md:hover:scale-[1.02] md:hover:-translate-y-1 group h-full flex flex-col relative overflow-hidden rounded-xl md:rounded-2xl transition-all duration-300">
                     {/* Main Solution Link */}
                     <Link
                       href={`/solution/${solution.slug}?${new URLSearchParams({
@@ -186,68 +191,62 @@ export function DashboardClient({
                       aria-label={`View solution for ${solution.title}`}
                     />
 
-                    <CardHeader className="relative z-10 pointer-events-none">
+                    <CardHeader className="relative z-10 pointer-events-none p-3.5 md:p-5 pb-2 md:pb-3">
                       <div className="flex justify-between items-start gap-4">
-                        <CardTitle className="text-lg font-medium text-zinc-200 group-hover:text-emerald-400 transition-colors">
-                          <span className="text-emerald-500/50 mr-2">
-                            #{parseInt(solution.id)}
+                        <CardTitle className="text-sm md:text-xl font-bold text-zinc-200 group-hover:text-emerald-400 transition-colors leading-tight">
+                          <span className="text-zinc-600 font-mono text-[9px] md:text-sm mr-2 block mb-0.5 md:mb-1">
+                            #{solution.id.padStart(4, '0')}
                           </span>
                           {solution.title}
                         </CardTitle>
-                        <div className="flex items-center gap-2">
-                          {solution.learningStatus === "Mastered" && <CheckCircle2 className="h-4 w-4 text-emerald-500/50" />}
-                          {solution.learningStatus === "Learning" && <BookOpen className="h-4 w-4 text-blue-500/50" />}
-                          <Badge
-                            variant="outline"
-                            className={`shrink-0 
-                                                      ${solution.difficulty ===
-                                "Easy"
-                                ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20"
-                                : solution.difficulty ===
-                                  "Medium"
-                                  ? "bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20"
-                                  : "bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20"
-                              }`}
-                          >
-                            {solution.difficulty}
-                          </Badge>
+                        <div className="flex items-center gap-1.5 pt-0.5 md:pt-1">
+                          {solution.learningStatus === "Mastered" && (
+                            <div className="p-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 shadow-lg shadow-emerald-500/10">
+                              <CheckCircle2 className="h-3 w-3 md:h-3.5 md:w-3.5 text-emerald-500" />
+                            </div>
+                          )}
+                          {solution.learningStatus === "Learning" && (
+                            <div className="p-1 rounded-full bg-blue-500/10 border border-blue-500/20 shadow-lg shadow-blue-500/10">
+                              <BookOpen className="h-3 w-3 md:h-3.5 md:w-3.5 text-blue-500" />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="flex-grow relative z-10 pointer-events-none">
-                      {solution.categories &&
-                        solution.categories.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-2 pointer-events-auto">
-                            {solution.categories.slice(0, 3).map((cat) => (
-                              <Badge
-                                key={cat.slug}
-                                variant="secondary"
-                                className="bg-zinc-800 text-zinc-400 text-[10px] hover:bg-zinc-700 flex items-center gap-1 cursor-pointer"
-                              >
-                                <Link
-                                  href={`/tag/${cat.slug}`}
-                                  className="hover:text-emerald-400 hover:underline transition-colors"
-                                >
-                                  {cat.name}
-                                </Link>
-                                {allowTagRemoval && (
-                                  <button
-                                    onClick={(e) =>
-                                      handleRemoveTag(e, solution.slug, cat.name)
-                                    }
-                                    className="hover:text-red-400 focus:outline-none ml-1 rounded-full hover:bg-zinc-600 p-0.5 transition-colors"
-                                    disabled={removeTagMutation.isPending}
-                                  >
-                                    <X className="h-2 w-2" />
-                                    <span className="sr-only">
-                                      Remove {cat.name}
-                                    </span>
-                                  </button>
-                                )}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
+                    <CardContent className="flex-grow relative z-10 pointer-events-none p-3.5 md:p-5 pt-0">
+                      <div className="flex flex-wrap items-center gap-1.5 mb-3 md:mb-4">
+                        <Badge
+                          variant="outline"
+                          className={`px-1.5 md:px-3 py-0 md:py-0.5 text-[8px] md:text-[10px] font-black tracking-wider uppercase border-0
+                            ${solution.difficulty === "Easy"
+                              ? "bg-emerald-500/10 text-emerald-400"
+                              : solution.difficulty === "Medium"
+                                ? "bg-amber-500/10 text-amber-400"
+                                : "bg-red-500/10 text-red-500"
+                            }`}
+                        >
+                          {solution.difficulty}
+                        </Badge>
+                      </div>
+
+                      {solution.categories && solution.categories.length > 0 && (
+                        <div className="flex flex-wrap gap-1 md:gap-1.5 mt-auto pointer-events-auto">
+                          {solution.categories.slice(0, 2).map((cat) => (
+                            <Link
+                              key={cat.slug}
+                              href={`/tag/${cat.slug}`}
+                              className="text-[9px] md:text-[10px] bg-zinc-900/50 hover:bg-emerald-500/10 text-zinc-500 hover:text-emerald-400 px-1.5 md:px-2 py-0.5 rounded-md transition-all border border-white/5 hover:border-emerald-500/30 whitespace-nowrap"
+                            >
+                              {cat.name}
+                            </Link>
+                          ))}
+                          {solution.categories.length > 2 && (
+                            <span className="text-[9px] md:text-[10px] text-zinc-600 px-0.5 self-center">
+                              +{solution.categories.length - 2}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>

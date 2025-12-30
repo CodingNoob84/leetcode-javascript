@@ -17,6 +17,7 @@ import { toast } from "sonner";
 interface LearningStatusSelectorProps {
     slug: string;
     initialStatus: LearningStatus;
+    size?: "default" | "compact";
 }
 
 const statusConfig = {
@@ -43,7 +44,7 @@ const statusConfig = {
     },
 };
 
-export function LearningStatusSelector({ slug, initialStatus }: LearningStatusSelectorProps) {
+export function LearningStatusSelector({ slug, initialStatus, size = "default" }: LearningStatusSelectorProps) {
     const queryClient = useQueryClient();
     const [status, setStatus] = useState<LearningStatus>(initialStatus);
 
@@ -85,15 +86,16 @@ export function LearningStatusSelector({ slug, initialStatus }: LearningStatusSe
                 <Button
                     variant="outline"
                     className={cn(
-                        "h-9 px-3 border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 gap-2 transition-all",
+                        "border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 gap-2 transition-all",
+                        size === "compact" ? "h-8 px-2 text-xs" : "h-9 px-3 text-sm",
                         current.bgColor,
                         current.borderColor
                     )}
                     disabled={mutation.isPending}
                 >
-                    <Icon className={cn("h-4 w-4", current.color)} />
-                    <span className={cn("text-sm font-medium", current.color)}>{current.label}</span>
-                    <ChevronDown className="h-4 w-4 opacity-50 ml-1" />
+                    <Icon className={cn(size === "compact" ? "h-3.5 w-3.5" : "h-4 w-4", current.color)} />
+                    <span className={cn("font-medium", current.color, size === "compact" && "text-[11px]")}>{current.label}</span>
+                    <ChevronDown className={cn("opacity-50 ml-0.5", size === "compact" ? "h-3 w-3" : "h-4 w-4")} />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 bg-zinc-900 border-zinc-800 text-zinc-200">

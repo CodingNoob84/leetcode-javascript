@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Pencil, Trash2 } from "lucide-react"
@@ -29,9 +30,10 @@ import { toast } from "sonner"
 interface TagHeaderActionsProps {
     slug: string;
     currentName: string;
+    isMobile?: boolean;
 }
 
-export function TagHeaderActions({ slug, currentName }: TagHeaderActionsProps) {
+export function TagHeaderActions({ slug, currentName, isMobile }: TagHeaderActionsProps) {
     const [isEditOpen, setIsEditOpen] = useState(false)
     const [isDeleteOpen, setIsDeleteOpen] = useState(false)
     const [newName, setNewName] = useState(currentName)
@@ -80,13 +82,29 @@ export function TagHeaderActions({ slug, currentName }: TagHeaderActionsProps) {
 
     return (
         <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)} className="border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-white h-9 px-3 sm:px-4">
-                <Pencil className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Edit Name</span>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditOpen(true)}
+                className={cn(
+                    "border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all",
+                    isMobile ? "h-8 w-8 p-0" : "h-9 px-3 sm:px-4"
+                )}
+            >
+                <Pencil className={cn("h-4 w-4", !isMobile && "sm:mr-2")} />
+                {!isMobile && <span className="hidden sm:inline">Edit Name</span>}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setIsDeleteOpen(true)} className="border-red-900/30 hover:bg-red-900/20 text-red-400 hover:text-red-300 h-9 px-3 sm:px-4">
-                <Trash2 className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Delete Tag</span>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsDeleteOpen(true)}
+                className={cn(
+                    "border-red-900/30 bg-red-950/20 hover:bg-red-900/20 text-red-400 hover:text-red-300 transition-all",
+                    isMobile ? "h-8 w-8 p-0" : "h-9 px-3 sm:px-4"
+                )}
+            >
+                <Trash2 className={cn("h-4 w-4", !isMobile && "sm:mr-2")} />
+                {!isMobile && <span className="hidden sm:inline">Delete Tag</span>}
             </Button>
 
             {/* Edit Dialog */}

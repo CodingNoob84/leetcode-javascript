@@ -29,13 +29,15 @@ export function SolutionContent({ slug, initialData, mode, isMobile }: SolutionC
     if (isMobile) {
         if (mode === "description") {
             return (
-                <div className="prose prose-invert prose-sm max-w-none pb-20">
-                    <MarkdownRenderer content={description} />
-                </div>
+                <ScrollArea className="h-full">
+                    <div className="prose prose-invert prose-sm max-w-none px-4 py-4">
+                        <MarkdownRenderer content={description} />
+                    </div>
+                </ScrollArea>
             );
         }
         return (
-            <div className="h-full bg-zinc-950">
+            <div className="h-full bg-zinc-950 overflow-hidden">
                 <CodeViewer code={code} />
             </div>
         );

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DashboardClient } from "@/components/dashboard-client";
 import DashboardLoading from "@/app/loading";
 
@@ -10,32 +11,32 @@ interface TagSolutionsViewProps {
 }
 
 export function TagSolutionsView({ tagSlug, initialPage = 1 }: TagSolutionsViewProps) {
-    const [data, setData] = useState<{ solutions: any[]; total: number } | null>(null);
-    const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(initialPage);
     const [status, setStatus] = useState<string>("");
     const limit = 12;
 
-    useEffect(() => {
-        async function fetchSolutions() {
-            setLoading(true);
-            try {
-                const res = await fetch(`/api/solutions?tag=${encodeURIComponent(tagSlug)}&page=${page}&limit=${limit}${status ? `&status=${status}` : ""}`);
-                if (res.ok) {
-                    const result = await res.json();
-                    setData(result);
-                }
-            } catch (err) {
-                console.error("Failed to fetch solutions:", err);
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchSolutions();
-    }, [tagSlug, page, status]);
+    const { data, isLoading, isError } = useQuery({
+        queryKey: ["solutions", { tagSlug, page, status }],
+        queryFn: async () => {
+            const params = new URLSearchParams({
+                tag: tagSlug,
+                page: page.toString(),
+                limit: limit.toString(),
+            });
+            if (status) params.append("status", status);
 
-    if (loading && !data) {
+            const res = await fetch(`/api/solutions?${params.toString()}`);
+            if (!res.ok) throw new Error("Failed to fetch solutions");
+            return res.json();
+        },
+    });
+
+    if (isLoading && !data) {
         return <DashboardLoading />;
+    }
+
+    if (isError) {
+        return <div className="text-center py-10 text-red-500">Failed to load solutions. Please try again.</div>;
     }
 
     return (

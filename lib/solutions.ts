@@ -1,6 +1,6 @@
 import { db } from './db';
 import * as schema from '../db/schema';
-import { eq, asc, sql, and } from 'drizzle-orm';
+import { eq, asc, sql, and, or, ilike } from 'drizzle-orm';
 
 export interface Solution {
     id: string;
@@ -418,4 +418,35 @@ export async function getLearningAnalyticsByTag(tagSlug: string) {
         },
         total
     };
+}
+
+export async function searchProblems(query: string, limit: number = 10): Promise<Solution[]> {
+    if (!query || query.trim().length === 0) return [];
+
+    const problemsList = await db.select({
+        problem: schema.problems,
+    })
+        .from(schema.problems)
+        .where(
+            or(
+                ilike(schema.problems.title, `%${query}%`),
+                ilike(schema.problems.slug, `%${query}%`)
+            )
+        )
+        .limit(limit)
+        .orderBy(asc(schema.problems.leetcodeId));
+
+    if (problemsList.length === 0) return [];
+
+    return problemsList.map(p => ({
+        id: p.problem.leetcodeId.toString(),
+        slug: p.problem.slug,
+        title: p.problem.title,
+        difficulty: p.problem.difficulty as any,
+        learningStatus: p.problem.learningStatus as any,
+        categories: [],
+        content: p.problem.content,
+        description: p.problem.description || "",
+        solution: p.problem.solution || "",
+    }));
 }
